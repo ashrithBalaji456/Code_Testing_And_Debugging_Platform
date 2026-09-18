@@ -231,7 +231,7 @@ export default function App() {
           </div>
 
           {/* Editor Canvas or Diff Viewer */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <div style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             {isDiffMode ? (
               <DiffViewer
                 originalCode={code}
