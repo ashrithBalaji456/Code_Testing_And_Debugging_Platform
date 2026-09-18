@@ -12,7 +12,7 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import { exportToJest, exportToPyTest } from '../services/testEngine';
+import { exportToJest, exportToPyTest, exportToJUnit5, exportToGoogleTest } from '../services/testEngine';
 
 export function TestRunner({
   code,
@@ -59,10 +59,27 @@ export function TestRunner({
   };
 
   const handleExportTests = () => {
-    const isPython = language === 'python';
-    const testCode = isPython ? exportToPyTest(code, testCases) : exportToJest(code, testCases);
-    const fileName = isPython ? `test_solution.py` : `solution.test.js`;
-    const mimeType = isPython ? 'text/x-python' : 'application/javascript';
+    let testCode = '';
+    let fileName = 'solution.test.js';
+    let mimeType = 'text/plain';
+
+    if (language === 'python') {
+      testCode = exportToPyTest(code, testCases);
+      fileName = 'test_solution.py';
+      mimeType = 'text/x-python';
+    } else if (language === 'java') {
+      testCode = exportToJUnit5(code, testCases);
+      fileName = 'SolutionTest.java';
+      mimeType = 'text/x-java-source';
+    } else if (language === 'cpp') {
+      testCode = exportToGoogleTest(code, testCases);
+      fileName = 'solution_test.cpp';
+      mimeType = 'text/x-c++src';
+    } else {
+      testCode = exportToJest(code, testCases);
+      fileName = 'solution.test.js';
+      mimeType = 'application/javascript';
+    }
 
     const blob = new Blob([testCode], { type: mimeType });
     const url = URL.createObjectURL(blob);
@@ -71,6 +88,15 @@ export function TestRunner({
     a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getExportButtonLabel = () => {
+    switch (language) {
+      case 'python': return 'Export PyTest';
+      case 'java': return 'Export JUnit 5';
+      case 'cpp': return 'Export GoogleTest';
+      default: return 'Export Jest';
+    }
   };
 
   return (
@@ -151,10 +177,10 @@ export function TestRunner({
             id="btn-export-test-code"
             className="btn btn-secondary btn-sm"
             onClick={handleExportTests}
-            title={language === 'python' ? "Export test suite as PyTest Python script" : "Export test suite as Jest / Vitest JavaScript file"}
+            title={`Export test suite for ${language}`}
           >
             <Download size={13} />
-            <span>{language === 'python' ? 'Export PyTest' : 'Export Jest'}</span>
+            <span>{getExportButtonLabel()}</span>
           </button>
         </div>
       </div>

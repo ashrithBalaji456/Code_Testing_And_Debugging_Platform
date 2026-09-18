@@ -7,7 +7,8 @@ import {
   Key, 
   Sparkles,
   RefreshCw,
-  FileCode2
+  FileCode2,
+  Upload
 } from 'lucide-react';
 
 export function Navbar({
@@ -21,6 +22,7 @@ export function Navbar({
   isDiffMode,
   onToggleDiffMode,
   onOpenApiKeyModal,
+  onOpenImportModal,
   hasApiKey,
   isRunning
 }) {
@@ -48,6 +50,8 @@ export function Navbar({
           >
             <option value="javascript">JavaScript (ES2024)</option>
             <option value="python">Python 3.12</option>
+            <option value="java">Java (OpenJDK 21)</option>
+            <option value="cpp">C++ (C++20)</option>
           </select>
         </div>
 
@@ -104,6 +108,16 @@ export function Navbar({
             <SearchCode size={15} />
           )}
           <span>Review & Audit</span>
+        </button>
+
+        <button 
+          id="btn-import-code"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenImportModal}
+          title="Import code from GitHub or local file"
+        >
+          <Upload size={14} />
+          <span>Import</span>
         </button>
 
         <button 

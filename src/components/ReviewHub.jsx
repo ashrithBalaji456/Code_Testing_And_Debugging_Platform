@@ -12,6 +12,7 @@ import {
   ExternalLink,
   HelpCircle
 } from 'lucide-react';
+import { ComplexityProfiler } from './ComplexityProfiler';
 
 export function ReviewHub({
   analysis,
@@ -125,6 +126,12 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
           </div>
         </div>
       </div>
+
+      {/* Algorithmic Complexity Profiler Banner */}
+      <ComplexityProfiler 
+        complexity={analysis?.complexity} 
+        onHighlightLine={onLineClick} 
+      />
 
       {/* Filter and Export Action Bar */}
       <div className="review-filters">

@@ -23,7 +23,9 @@ import { Terminal } from './components/Terminal';
 import { ReviewHub } from './components/ReviewHub';
 import { Debugger } from './components/Debugger';
 import { TestRunner } from './components/TestRunner';
+import { AiChat } from './components/AiChat';
 import { ApiKeyModal } from './components/ApiKeyModal';
+import { ImportModal } from './components/ImportModal';
 
 export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -47,8 +49,32 @@ export default function App() {
 
   // Gemini API key state
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
+
+  const getFileName = () => {
+    switch (selectedLanguage) {
+      case 'python': return 'solution.py';
+      case 'java': return 'Solution.java';
+      case 'cpp': return 'solution.cpp';
+      default: return 'solution.js';
+    }
+  };
+
+  // Handle imported code
+  const handleImportCode = (importedCode, lang) => {
+    setCode(importedCode);
+    if (lang) {
+      setSelectedLanguage(lang);
+    }
+    setTestResults(null);
+    setExecutionResult(null);
+    setLogs(prev => [
+      ...prev,
+      { type: 'info', message: `Imported new code snippet (${lang || selectedLanguage}). Ready for analysis.`, time: new Date().toLocaleTimeString() }
+    ]);
+  };
 
   // Handle switching language
   const handleSelectLanguage = (newLang) => {
@@ -215,6 +241,7 @@ export default function App() {
         isDiffMode={isDiffMode}
         onToggleDiffMode={() => setIsDiffMode(!isDiffMode)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+        onOpenImportModal={() => setIsImportModalOpen(true)}
         hasApiKey={!!geminiApiKey}
         isRunning={isRunning}
       />
@@ -227,7 +254,7 @@ export default function App() {
             <div className="editor-tabs">
               <div className="editor-tab-item">
                 <span className="editor-tab-badge" />
-                <span>{selectedLanguage === 'python' ? 'solution.py' : 'solution.js'}</span>
+                <span>{getFileName()}</span>
               </div>
             </div>
 
@@ -277,7 +304,7 @@ export default function App() {
           />
         </section>
 
-        {/* Right Side: Tri-Mode Studio (Review, Debug, Test) */}
+        {/* Right Side: Quad-Mode Studio (Review, Debug, Test, AI Assistant) */}
         <section className="studio-workspace">
           {/* Studio Tab Navigation */}
           <div className="studio-tabs-bar">
@@ -318,6 +345,15 @@ export default function App() {
                 {testCases.length}
               </span>
             </button>
+
+            <button
+              id="tab-btn-ai"
+              className={`studio-tab-btn tab-ai ${activeTab === 'ai' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ai')}
+            >
+              <Sparkles size={15} color="#c084fc" />
+              <span>AI Assistant</span>
+            </button>
           </div>
 
           {/* Studio Content Mode */}
@@ -352,8 +388,26 @@ export default function App() {
               isRunningTests={isRunning}
             />
           )}
+
+          {activeTab === 'ai' && (
+            <AiChat
+              code={code}
+              language={selectedLanguage}
+              analysis={analysis}
+              executionResult={executionResult}
+              apiKey={geminiApiKey}
+              onApplyCodeToEditor={(newCode) => setCode(newCode)}
+            />
+          )}
         </section>
       </main>
+
+      {/* Code Importer Modal (GitHub / Local File / Raw) */}
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportCode={handleImportCode}
+      />
 
       {/* Optional Gemini AI Key Modal */}
       <ApiKeyModal

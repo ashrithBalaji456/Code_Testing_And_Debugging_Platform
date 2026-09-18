@@ -332,11 +332,118 @@ export function analyzeCode(code, language = 'javascript') {
         description: 'Hardcoded cryptographic keys used for session signing or tokens can be leaked via git and compromise user sessions.',
         originalCode: line.trim(),
         suggestedFix: 'SECRET_KEY = os.environ.get("SECRET_KEY", "fallback_dev_key")',
-        recommendation: 'Read application secrets from os.environ or python-dotenv.'
+        recommendation: 'Store sensitive keys in environment variables or a secrets manager.'
       });
       securityDeduction += 30;
     }
   });
+
+  // Java Specific Rule 1: System.out.println in production code
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/System\.out\.(print|println)\s*\(/.test(line)) {
+      findings.push({
+        id: `java-sysout-${lineNum}`,
+        line: lineNum,
+        severity: 'info',
+        category: 'Best Practices',
+        title: 'System.out.println in Production Code',
+        description: 'Direct stdout writing bypasses SLF4J / Logback logging frameworks and blocks thread I/O.',
+        originalCode: line.trim(),
+        suggestedFix: 'logger.info("..."); // Use structured SLF4J / Log4j logger',
+        recommendation: 'Replace standard console printing with a configured logger (e.g. SLF4J / Log4j2).'
+      });
+      maintainabilityDeduction += 5;
+    }
+  });
+
+  // Java Specific Rule 2: Unsafe Unboxing of Wrapper Types
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/(Double|Integer|Float|Long)\s+[a-zA-Z0-9_]+.*[><=+\-*/]/.test(line) && !line.includes('!= null') && !line.includes('Objects.')) {
+      findings.push({
+        id: `java-unbox-${lineNum}`,
+        line: lineNum,
+        severity: 'warning',
+        category: 'Code Quality',
+        title: 'Potential NullPointerException via Auto-Unboxing',
+        description: 'Arithmetic or comparison operations on nullable wrapper objects automatically unbox values without checking for null (CWE-476).',
+        originalCode: line.trim(),
+        suggestedFix: 'Objects.requireNonNull(val, "Parameter cannot be null");',
+        recommendation: 'Guard nullable parameters with Objects.requireNonNull() or use Optional<T>.'
+      });
+      maintainabilityDeduction += 15;
+    }
+  });
+
+  // C++ Specific Rule 1: Raw Dynamic Allocation (new / new[]) without Smart Pointers
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/\bnew\s+[a-zA-Z0-9_]+\[/.test(line) && !code.includes('std::unique_ptr') && !code.includes('std::vector')) {
+      findings.push({
+        id: `cpp-raw-alloc-${lineNum}`,
+        line: lineNum,
+        severity: 'critical',
+        category: 'Security',
+        title: 'Raw Dynamic Array Allocation (Memory Leak / RAII Violation)',
+        description: 'Using raw "new[]" places dynamic memory on the heap that must be manually paired with "delete[]", leading to memory leaks on unexpected returns or exceptions.',
+        originalCode: line.trim(),
+        suggestedFix: 'std::vector<int> buffer(capacity); // Use std::vector or std::unique_ptr for RAII',
+        recommendation: 'Follow modern C++ RAII: prefer std::vector or std::make_unique over raw dynamic array allocations.'
+      });
+      securityDeduction += 25;
+      performanceDeduction += 20;
+    }
+  });
+
+  // C++ Specific Rule 2: Buffer Overflow / Off-by-one Indexing
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/for\s*\([^;]+;\s*[a-zA-Z0-9_]+\s*<=\s*(capacity|size|length)/.test(line)) {
+      findings.push({
+        id: `cpp-oob-${lineNum}`,
+        line: lineNum,
+        severity: 'critical',
+        category: 'Security',
+        title: 'Potential Buffer Overflow: Off-by-One Array Bound (<= instead of <)',
+        description: 'Iterating up to "<= capacity" attempts to access memory past the end of the allocated buffer, causing undefined behavior or heap corruption (CWE-119).',
+        originalCode: line.trim(),
+        suggestedFix: line.replace(/<=/, '<'),
+        recommendation: 'Use strict inequality (`<`) or range-based for-loops / std::fill.'
+      });
+      securityDeduction += 35;
+    }
+  });
+
+  // Algorithmic Complexity Estimator
+  let timeComplexity = 'O(1)';
+  let spaceComplexity = 'O(1)';
+  let complexityExplanation = 'Constant time execution with direct operations.';
+  const hotspots = [];
+
+  if (hasRecursion && !code.includes('memo') && !code.includes('cache') && !code.includes('lru_cache')) {
+    timeComplexity = 'O(2^N)';
+    spaceComplexity = 'O(N)';
+    complexityExplanation = 'Exponential time branching due to unmemoized recursive call trees.';
+    lines.forEach((l, i) => {
+      if (recursiveFuncName && l.includes(`${recursiveFuncName}(`) && !l.includes('function') && !l.includes('def')) {
+        hotspots.push(i + 1);
+      }
+    });
+  } else if (maxLoopDepth >= 2) {
+    timeComplexity = maxLoopDepth === 2 ? 'O(N^2)' : `O(N^${maxLoopDepth})`;
+    spaceComplexity = code.includes('new ') || code.includes('[]') ? 'O(N)' : 'O(1)';
+    complexityExplanation = `Quadratic/polynomial time scaling due to nested iterations (depth ${maxLoopDepth}).`;
+    hotspots.push(deepLoopLine);
+  } else if (loopDepth > 0 || /for\b|while\b/.test(code)) {
+    timeComplexity = 'O(N)';
+    spaceComplexity = code.includes('[]') || code.includes('push') || code.includes('append') ? 'O(N)' : 'O(1)';
+    complexityExplanation = 'Linear time scaling proportional to the size of the input sequence.';
+  } else if (code.includes('binarySearch') || (code.includes('/ 2') && code.includes('while'))) {
+    timeComplexity = 'O(log N)';
+    spaceComplexity = 'O(1)';
+    complexityExplanation = 'Logarithmic time scaling via divide-and-conquer binary partition.';
+  }
 
   // Compute final scores
   const securityScore = Math.max(15, Math.min(100, 100 - securityDeduction));
@@ -371,6 +478,12 @@ export function analyzeCode(code, language = 'javascript') {
     performanceScore,
     maintainabilityScore,
     findings,
-    stats
+    stats,
+    complexity: {
+      time: timeComplexity,
+      space: spaceComplexity,
+      explanation: complexityExplanation,
+      hotspots
+    }
   };
 }

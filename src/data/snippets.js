@@ -496,5 +496,158 @@ def get_user_profile(db_connection, username: str):
       { step: 3, line: 15, vars: { alert: 'OWASP Top 10: A03 Injection via unescaped f-string' } },
       { step: 4, line: 16, vars: { db_compromised: true } }
     ]
+  },
+  {
+    id: 'java-null-pointer',
+    name: 'Java: Unsafe Unboxing & NullPointerException',
+    language: 'java',
+    category: 'Memory & Exceptions',
+    description: 'Java method automatically unboxing wrapper types (Integer to int) without null validation, causing fatal NullPointerException at runtime.',
+    code: `public class Solution {
+    // BUG 1: Unsafe unboxing: if price or discount is null, JVM throws NullPointerException
+    public static double calculateFinalPrice(Double price, Integer discountPercent) {
+        // BUG 2: Direct arithmetic on nullable objects triggers auto-unboxing
+        if (discountPercent > 100) {
+            return 0.0;
+        }
+        
+        // BUG 3: Missing validation for negative price
+        double discountAmount = price * (discountPercent / 100.0);
+        return price - discountAmount;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("Result: " + calculateFinalPrice(null, 20)); // Crashes with NPE!
+    }
+}
+`,
+    fixedCode: `import java.util.Optional;
+import java.util.Objects;
+
+public class Solution {
+    /**
+     * Calculates final price with defensive null guards and Optional pattern.
+     */
+    public static double calculateFinalPrice(Double price, Integer discountPercent) {
+        // Defensive validation prevents NullPointerException
+        Objects.requireNonNull(price, "Price cannot be null");
+        int safeDiscount = Optional.ofNullable(discountPercent).orElse(0);
+
+        if (price < 0.0) {
+            throw new IllegalArgumentException("Price must be non-negative");
+        }
+        if (safeDiscount < 0 || safeDiscount > 100) {
+            throw new IllegalArgumentException("Discount must be between 0 and 100");
+        }
+
+        double discountAmount = price * (safeDiscount / 100.0);
+        return price - discountAmount;
+    }
+
+    public static void main(String[] args) {
+        System.out.println("Result: " + calculateFinalPrice(100.0, 20));
+    }
+}
+`,
+    simulatedTrace: `Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.lang.Double.doubleValue()" because "price" is null
+    at Solution.calculateFinalPrice(Solution.java:9)
+    at Solution.main(Solution.java:15)`,
+    testCases: [
+      { id: 'java-npe-1', name: 'Normal 20% discount on $100', input: '(100.0, 20)', expected: '80.0', type: 'Happy' },
+      { id: 'java-npe-2', name: 'Null price handling', input: '(null, 20)', expected: 'Error', type: 'Edge' },
+      { id: 'java-npe-3', name: 'Null discount defaults to 0%', input: '(100.0, null)', expected: '100.0', type: 'Edge' },
+      { id: 'java-npe-4', name: 'Negative price guard', input: '(-50.0, 10)', expected: 'Error', type: 'Boundary' }
+    ],
+    stepTrace: [
+      { step: 1, line: 3, vars: { price: 'null', discountPercent: 20 } },
+      { step: 2, line: 5, vars: { check: 'discountPercent > 100', passed: false } },
+      { step: 3, line: 9, vars: { unboxAttempt: 'price.doubleValue()', exception: 'NullPointerException' } }
+    ]
+  },
+  {
+    id: 'cpp-memory-leak',
+    name: 'C++: Raw Pointer Memory Leak (Missing delete[])',
+    language: 'cpp',
+    category: 'Memory Management',
+    description: 'Dynamic allocation using raw "new int[]" without corresponding "delete[]", causing persistent heap memory leaks and lack of RAII.',
+    code: `#include <iostream>
+#include <vector>
+
+class DataBuffer {
+private:
+    int* buffer;
+    size_t capacity;
+
+public:
+    DataBuffer(size_t size) : capacity(size) {
+        // MEMORY BUG 1: Raw dynamic allocation on heap
+        buffer = new int[capacity];
+    }
+
+    void fill(int value) {
+        for (size_t i = 0; i <= capacity; ++i) { // BUG 2: Off-by-one buffer overflow (<= vs <)
+            buffer[i] = value;
+        }
+    }
+
+    // MEMORY BUG 3: Missing destructor ~DataBuffer() to call delete[] buffer!
+};
+
+int main() {
+    for (int i = 0; i < 10000; ++i) {
+        DataBuffer buf(1024); // Leaks 4KB on every iteration!
+        buf.fill(42);
+    }
+    std::cout << "Done" << std::endl;
+    return 0;
+}
+`,
+    fixedCode: `#include <iostream>
+#include <vector>
+#include <memory>
+
+// Modern C++20: Uses std::vector (RAII) to eliminate raw pointers and leaks completely
+class DataBuffer {
+private:
+    std::vector<int> buffer;
+
+public:
+    explicit DataBuffer(size_t size) : buffer(size, 0) {}
+
+    void fill(int value) {
+        // Bounds-safe iteration with std::fill
+        std::fill(buffer.begin(), buffer.end(), value);
+    }
+
+    size_t size() const noexcept {
+        return buffer.size();
+    }
+};
+
+int main() {
+    for (int i = 0; i < 10000; ++i) {
+        DataBuffer buf(1024); // Memory automatically deallocated at scope exit
+        buf.fill(42);
+    }
+    std::cout << "Done: 0 bytes leaked." << std::endl;
+    return 0;
+}
+`,
+    simulatedTrace: `==31245==ERROR: LeakSanitizer: detected memory leaks
+Direct leak of 40960000 byte(s) in 10000 object(s) allocated from:
+    #0 0x7f88414 in operator new[](unsigned long)
+    #1 0x40120b in DataBuffer::DataBuffer(unsigned long) solution.cpp:11
+    #2 0x4012bb in main solution.cpp:24
+SUMMARY: AddressSanitizer: 40.96 MB leaked in 10000 allocations.`,
+    testCases: [
+      { id: 'cpp-leak-1', name: 'Standard allocation & fill', input: '1024', expected: 'Allocated 1024 elements', type: 'Happy' },
+      { id: 'cpp-leak-2', name: 'Scope exit leak verification', input: 'iterations: 10000', expected: '0 bytes leaked', type: 'Memory' },
+      { id: 'cpp-leak-3', name: 'Boundary index guard', input: 'index == capacity', expected: 'No out-of-bounds access', type: 'Boundary' }
+    ],
+    stepTrace: [
+      { step: 1, line: 11, vars: { allocated_bytes: 4096, pointer: '0x55a9b0' } },
+      { step: 2, line: 15, vars: { index: 1024, max_valid_index: 1023, alert: 'BUFFER OVERFLOW WRITE' } },
+      { step: 3, line: 24, vars: { scope_exit: true, destructor_called: false, leaked_bytes: 4096 } }
+    ]
   }
 ];

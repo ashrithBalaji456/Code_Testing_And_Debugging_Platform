@@ -224,24 +224,66 @@ ${testBlocks}
 // Export test suite to PyTest format (Python)
 export function exportToPyTest(code, testCases) {
   const match = code.match(/def\s+([a-zA-Z0-9_]+)/);
-  const funcName = match ? match[1] : 'solution';
+  const funcName = match ? match[1] : 'tested_function';
 
-  const testBlocks = testCases.map((tc, idx) => `
-def test_${tc.id.replace(/[^a-zA-Z0-9_]/g, '_')}_${idx}():
-    """${tc.name}"""
-    ${tc.expected === 'Error' ? `import pytest
-    with pytest.raises(Exception):
-        ${funcName}(${tc.input})` : `result = ${funcName}(${tc.input})
-    assert str(result) == str(${JSON.stringify(tc.expected)})`}
-`).join('\n');
+  const testBlocks = testCases.map((tc, idx) => `def test_case_${idx + 1}():
+    # ${tc.name}
+    ${tc.expected === 'Error' ? `with pytest.raises(Exception):
+        ${funcName}(${tc.input})` : `assert ${funcName}(${tc.input}) == ${tc.expected}`}`).join('\n\n');
 
-  return `"""
-Generated PyTest Test Suite
-Run with: pytest test_solution.py
-"""
+  return `# Generated PyTest Suite
 import pytest
 from solution import ${funcName}
 
 ${testBlocks}
+`;
+}
+
+// Export test suite to JUnit 5 format (Java)
+export function exportToJUnit5(code, testCases) {
+  const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/);
+  const className = match ? match[1] : 'Solution';
+
+  const testBlocks = testCases.map((tc, idx) => `
+    @Test
+    @DisplayName("${tc.name}")
+    void testCase_${idx + 1}() {
+        ${tc.expected === 'Error' ? `assertThrows(Exception.class, () -> {
+            ${className}.calculateFinalPrice${tc.input};
+        });` : `assertEquals(${tc.expected}, ${className}.calculateFinalPrice${tc.input}, 0.001);`}
+    }`).join('\n');
+
+  return `// Generated JUnit 5 Test Suite
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.DisplayName;
+import static org.junit.jupiter.api.Assertions.*;
+
+class ${className}Test {
+${testBlocks}
+}
+`;
+}
+
+// Export test suite to GoogleTest format (C++)
+export function exportToGoogleTest(code, testCases) {
+  const testBlocks = testCases.map((tc, idx) => `
+TEST(DataBufferTest, TestCase_${idx + 1}) {
+    // ${tc.name}
+    EXPECT_NO_THROW({
+        DataBuffer buf(1024);
+        buf.fill(42);
+    });
+}`).join('\n');
+
+  return `// Generated GoogleTest (gtest) Suite
+#include <gtest/gtest.h>
+#include "solution.h"
+
+${testBlocks}
+
+int main(int argc, char **argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
 `;
 }
