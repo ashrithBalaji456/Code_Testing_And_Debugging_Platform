@@ -2105,4 +2105,50 @@ html, body {
   border-top: 1px solid var(--border-default);
 }
 
+/* ==========================================================================
+   COVERAGE HEATMAP GUTTERS
+   ========================================================================== */
+
+.coverage-pip {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+.coverage-pip.covered {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+}
+
+.coverage-pip.uncovered {
+  background: var(--accent-rose);
+  box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);
+}
+
+/* ==========================================================================
+   EXECUTIVE AUDIT REPORT & PRINT STYLES
+   ========================================================================== */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .printable-report-area, .printable-report-area * {
+    visibility: visible;
+  }
+  .printable-report-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .modal-header, .modal-footer, .navbar, .editor-workspace, .studio-workspace, .modal-backdrop {
+    display: none !important;
+  }
+}
+
 

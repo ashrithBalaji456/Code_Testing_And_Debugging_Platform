@@ -28,6 +28,9 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImportModal } from './components/ImportModal';
 import { CiCdModal } from './components/CiCdModal';
 import { ShareModal } from './components/ShareModal';
+import { BenchmarkModal } from './components/BenchmarkModal';
+import { ModernizeModal } from './components/ModernizeModal';
+import { ReportModal } from './components/ReportModal';
 
 export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -40,6 +43,7 @@ export default function App() {
   const [fixedCode, setFixedCode] = useState(currentSnippet.fixedCode);
   const [activeTab, setActiveTab] = useState('review'); // 'review' | 'debug' | 'test'
   const [isDiffMode, setIsDiffMode] = useState(false);
+  const [showCoverage, setShowCoverage] = useState(true);
 
   // Analysis & Testing state
   const [analysis, setAnalysis] = useState(() => analyzeCode(currentSnippet.code, currentSnippet.language));
@@ -54,6 +58,9 @@ export default function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCiCdModalOpen, setIsCiCdModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
+  const [isModernizeModalOpen, setIsModernizeModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
@@ -290,6 +297,9 @@ export default function App() {
         onOpenImportModal={() => setIsImportModalOpen(true)}
         onOpenCiCdModal={() => setIsCiCdModalOpen(true)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenBenchmarkModal={() => setIsBenchmarkModalOpen(true)}
+        onOpenModernizeModal={() => setIsModernizeModalOpen(true)}
+        onOpenReportModal={() => setIsReportModalOpen(true)}
         currentTheme={currentTheme}
         onSelectTheme={setCurrentTheme}
         hasApiKey={!!geminiApiKey}
@@ -321,6 +331,13 @@ export default function App() {
               >
                 Diff Compare
               </button>
+              <button 
+                className={`view-toggle-btn ${showCoverage ? 'active' : ''}`}
+                onClick={() => setShowCoverage(!showCoverage)}
+                title="Toggle line-level test coverage heatmap in editor"
+              >
+                Coverage Heatmap {testResults?.coveragePercent ? `(${testResults.coveragePercent}%)` : ''}
+              </button>
             </div>
           </div>
 
@@ -341,6 +358,8 @@ export default function App() {
                 runtimeErrorLine={executionResult?.error?.line}
                 activeLine={highlightedLine}
                 onLineClick={(line) => setHighlightedLine(line)}
+                coverageMap={testResults?.coverageMap || null}
+                showCoverage={showCoverage}
               />
             )}
           </div>
@@ -476,6 +495,34 @@ export default function App() {
         language={selectedLanguage}
         analysis={analysis}
         testCases={testCases}
+      />
+
+      {/* Performance Benchmark Modal */}
+      <BenchmarkModal
+        isOpen={isBenchmarkModalOpen}
+        onClose={() => setIsBenchmarkModalOpen(false)}
+        originalCode={code}
+        fixedCode={fixedCode}
+        language={selectedLanguage}
+      />
+
+      {/* Modern Idioms & Strict Types Auto-Refactor Modal */}
+      <ModernizeModal
+        isOpen={isModernizeModalOpen}
+        onClose={() => setIsModernizeModalOpen(false)}
+        code={code}
+        language={selectedLanguage}
+        onApplyModernCode={(modernCode) => setCode(modernCode)}
+      />
+
+      {/* Executive Audit PDF & Printable Report Modal */}
+      <ReportModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        analysis={analysis}
+        testResults={testResults}
+        language={selectedLanguage}
+        code={code}
       />
 
       {/* Optional Gemini AI Key Modal */}

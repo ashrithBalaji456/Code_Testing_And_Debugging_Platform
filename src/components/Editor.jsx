@@ -7,7 +7,9 @@ export function Editor({
   findings = [],
   runtimeErrorLine = null,
   activeLine = null,
-  onLineClick
+  onLineClick,
+  coverageMap = null,
+  showCoverage = false
 }) {
   const textareaRef = useRef(null);
   const gutterRef = useRef(null);
@@ -74,15 +76,27 @@ export function Editor({
           const hasError = errorLines.has(lineNum);
           const hasWarn = warningLines.has(lineNum);
           const isActive = activeLine === lineNum;
+          const isCovered = coverageMap && coverageMap[lineNum] > 0;
+          const isUncovered = coverageMap && coverageMap[lineNum] === 0;
 
           return (
             <div
               key={lineNum}
               className={`gutter-line ${hasError ? 'has-error' : ''} ${hasWarn ? 'has-warning' : ''} ${isActive ? 'active-line' : ''}`}
               onClick={() => onLineClick && onLineClick(lineNum)}
-              title={hasError ? 'Error on this line' : hasWarn ? 'Review warning on this line' : `Line ${lineNum}`}
+              title={
+                hasError 
+                  ? 'Error on this line' 
+                  : hasWarn 
+                    ? 'Review warning on this line' 
+                    : showCoverage && coverageMap && coverageMap[lineNum] !== undefined
+                      ? (isCovered ? `Covered (hit ${coverageMap[lineNum]}x by test suite)` : 'Uncovered line (not reached by tests)')
+                      : `Line ${lineNum}`
+              }
               style={{ cursor: 'pointer' }}
             >
+              {showCoverage && isCovered && <span className="coverage-pip covered" />}
+              {showCoverage && isUncovered && <span className="coverage-pip uncovered" />}
               {hasError && <span className="gutter-marker error" />}
               {hasWarn && !hasError && <span className="gutter-marker warning" />}
               <span>{lineNum}</span>

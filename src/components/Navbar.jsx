@@ -11,7 +11,9 @@ import {
   Upload,
   GitBranch,
   Share2,
-  Palette
+  Palette,
+  Gauge,
+  FileText
 } from 'lucide-react';
 
 export function Navbar({
@@ -28,6 +30,9 @@ export function Navbar({
   onOpenImportModal,
   onOpenCiCdModal,
   onOpenShareModal,
+  onOpenBenchmarkModal,
+  onOpenModernizeModal,
+  onOpenReportModal,
   currentTheme = 'obsidian',
   onSelectTheme,
   hasApiKey,
@@ -161,6 +166,36 @@ export function Navbar({
         >
           <Share2 size={14} />
           <span>Share</span>
+        </button>
+
+        <button 
+          id="btn-benchmark"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenBenchmarkModal}
+          title="Side-by-Side Performance & Throughput Benchmark"
+        >
+          <Gauge size={14} />
+          <span>Benchmark</span>
+        </button>
+
+        <button 
+          id="btn-modernize"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenModernizeModal}
+          title="Auto-refactor to Modern Language Idioms & Types"
+        >
+          <Sparkles size={14} color="#c084fc" />
+          <span>Modernize</span>
+        </button>
+
+        <button 
+          id="btn-report"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenReportModal}
+          title="Print or Save Executive PDF Audit Report"
+        >
+          <FileText size={14} />
+          <span>Report</span>
         </button>
 
         <button 
