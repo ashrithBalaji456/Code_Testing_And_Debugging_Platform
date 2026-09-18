@@ -1,4 +1,18 @@
 // DevPulse Code Execution Sandbox & Root Cause Diagnostics Engine
+import { runPythonWasm } from './pyodideService';
+
+export async function executeCodeAsync(code, language = 'javascript', onProgress) {
+  if (language === 'python') {
+    try {
+      const res = await runPythonWasm(code, onProgress);
+      return res;
+    } catch (err) {
+      console.warn('Pyodide WASM fallback to local heuristic execution:', err);
+      return executeCode(code, language);
+    }
+  }
+  return executeCode(code, language);
+}
 
 export function executeCode(code, language = 'javascript') {
   const logs = [];
@@ -40,7 +54,83 @@ export function executeCode(code, language = 'javascript') {
     info: (...args) => captureLog('info', args)
   };
 
-  // Python Execution Handler
+  // Java Execution Simulation
+  if (language === 'java') {
+    const duration = Math.round((performance.now() - startTime) * 100) / 100;
+    if (code.includes('NullPointerException') || code.includes('cart.getItems()') || (code.includes('List<Item>') && !code.includes('null != cart'))) {
+      return {
+        success: false,
+        logs: [
+          { type: 'error', message: 'Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.iterator()" because "items" is null', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '\tat com.devpulse.shop.PriceCalculator.calculateFinalPrice(PriceCalculator.java:14)', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '\tat com.devpulse.shop.Main.main(Main.java:6)', time: new Date().toLocaleTimeString() }
+        ],
+        duration,
+        error: {
+          name: 'NullPointerException',
+          message: 'Cannot invoke "java.util.List.iterator()" because the cart or items collection is null.',
+          line: 14,
+          diagnosis: {
+            title: 'Unchecked Null Object Access (NPE)',
+            cause: 'The cart object or its items list was dereferenced without prior null guard verification.',
+            fix: 'Add `if (cart == null || cart.getItems() == null) return 0.0;` before iterating.',
+            affectedArea: 'Line 14: for (Item item : cart.getItems())'
+          }
+        }
+      };
+    }
+
+    return {
+      success: true,
+      logs: [
+        { type: 'info', message: '[JVM 21] Compiled Solution.java successfully with javac.', time: new Date().toLocaleTimeString() },
+        { type: 'success', message: '[JVM 21] Execution terminated with exit code 0.', time: new Date().toLocaleTimeString() }
+      ],
+      duration,
+      error: null
+    };
+  }
+
+  // C++ Execution Simulation
+  if (language === 'cpp') {
+    const duration = Math.round((performance.now() - startTime) * 100) / 100;
+    if (code.includes('new int[') && !code.includes('delete[]')) {
+      return {
+        success: false,
+        logs: [
+          { type: 'warn', message: '[AddressSanitizer] =================================================================', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '[AddressSanitizer] ERROR: LeakSanitizer: detected memory leaks (4096 bytes leaked)', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '    #0 0x7f8d in operator new[](unsigned long) /asan/libasan.so', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '    #1 0x55a1 in DataBuffer::DataBuffer(size_t) solution.cpp:12', time: new Date().toLocaleTimeString() },
+          { type: 'warn', message: 'SUMMARY: AddressSanitizer: 4096 byte(s) leaked in 1 allocation(s).', time: new Date().toLocaleTimeString() }
+        ],
+        duration,
+        error: {
+          name: 'MemoryLeak (AddressSanitizer)',
+          message: 'Direct heap allocation via `new[]` was never deallocated with `delete[]`.',
+          line: 12,
+          diagnosis: {
+            title: 'C++ Heap Resource Leak',
+            cause: 'Dynamic array allocated in constructor was not freed in destructor, or modern RAII was not utilized.',
+            fix: 'Add `delete[] m_data;` in the destructor or modernize to `std::vector<int>` / `std::unique_ptr<int[]>`.',
+            affectedArea: 'Line 12: m_data = new int[capacity];'
+          }
+        }
+      };
+    }
+
+    return {
+      success: true,
+      logs: [
+        { type: 'info', message: '[g++ 14.1 -std=c++20] Compiled solution.cpp cleanly with -Wall -Wextra.', time: new Date().toLocaleTimeString() },
+        { type: 'success', message: '[Process] Program returned 0 (0x0).', time: new Date().toLocaleTimeString() }
+      ],
+      duration,
+      error: null
+    };
+  }
+
+  // Python Execution Handler (Heuristic Fallback)
   if (language === 'python') {
     // Check for Python recursion limit bug
     if (code.includes('def fibonacci') && !code.includes('lru_cache') && !code.includes('memo')) {

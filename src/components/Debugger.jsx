@@ -10,10 +10,14 @@ import {
   Layers, 
   Activity, 
   Wrench,
-  Search
+  Search,
+  Workflow
 } from 'lucide-react';
+import { CallGraphVisualizer } from './CallGraphVisualizer';
 
 export function Debugger({
+  code = '',
+  language = 'javascript',
   executionResult,
   stepTrace = [],
   simulatedError = null,
@@ -22,6 +26,7 @@ export function Debugger({
 }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [debugViewMode, setDebugViewMode] = useState('trace'); // 'trace' | 'graph'
 
   const error = executionResult?.error || (simulatedError ? {
     name: 'DetectedRuntimeBug',
@@ -135,80 +140,108 @@ export function Debugger({
         </div>
       )}
 
-      {/* Step-by-Step Execution Simulator */}
-      <div className="simulator-panel">
-        <div className="simulator-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={16} color="var(--accent-cyan)" />
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-              Execution Trace & Variable Watch
-            </span>
-          </div>
+      {/* Debugger Sub-view Switcher */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-default)', paddingBottom: '8px' }}>
+        <button
+          id="btn-subview-trace"
+          className={`filter-pill ${debugViewMode === 'trace' ? 'active' : ''}`}
+          onClick={() => setDebugViewMode('trace')}
+        >
+          <Activity size={12} style={{ display: 'inline', marginRight: '5px' }} />
+          <span>Execution Trace & Watch</span>
+        </button>
+        <button
+          id="btn-subview-graph"
+          className={`filter-pill ${debugViewMode === 'graph' ? 'active' : ''}`}
+          onClick={() => setDebugViewMode('graph')}
+        >
+          <Workflow size={12} style={{ display: 'inline', marginRight: '5px' }} />
+          <span>AST Call-Graph & Tree</span>
+        </button>
+      </div>
 
-          <div className="sim-controls">
-            <button 
-              className="btn btn-secondary btn-sm"
-              onClick={handleResetSim}
-              disabled={currentStepIndex === 0}
-              title="Reset simulation to step 1"
-            >
-              <RotateCcw size={12} />
-            </button>
-
-            <button 
-              className="btn btn-secondary btn-sm"
-              onClick={() => setIsPlaying(!isPlaying)}
-              title={isPlaying ? 'Pause simulation' : 'Auto-step through execution'}
-            >
-              {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-            </button>
-
-            <button 
-              className="btn btn-secondary btn-sm"
-              onClick={handleNextStep}
-              disabled={currentStepIndex >= stepTrace.length - 1}
-              title="Step to next iteration"
-            >
-              <SkipForward size={12} />
-            </button>
-
-            <span className="sim-step-indicator">
-              Step {stepTrace.length > 0 ? currentStepIndex + 1 : 0} of {stepTrace.length}
-            </span>
-          </div>
-        </div>
-
-        {currentStep ? (
-          <div>
-            <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
-              Currently inspecting execution frame at <strong style={{ color: 'var(--accent-primary-light)' }}>Line {currentStep.line}</strong>:
+      {debugViewMode === 'graph' ? (
+        <CallGraphVisualizer
+          code={code}
+          language={language}
+          onHighlightLine={onHighlightLine}
+        />
+      ) : (
+        /* Step-by-Step Execution Simulator */
+        <div className="simulator-panel">
+          <div className="simulator-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Activity size={16} color="var(--accent-cyan)" />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                Execution Trace & Variable Watch
+              </span>
             </div>
 
-            <table className="variable-watch-table">
-              <thead>
-                <tr>
-                  <th>Variable Name</th>
-                  <th>Value / State</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(currentStep.vars).map(([name, val]) => (
-                  <tr key={name}>
-                    <td className="var-name">{name}</td>
-                    <td className="var-val">
-                      {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                    </td>
+            <div className="sim-controls">
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={handleResetSim}
+                disabled={currentStepIndex === 0}
+                title="Reset simulation to step 1"
+              >
+                <RotateCcw size={12} />
+              </button>
+
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsPlaying(!isPlaying)}
+                title={isPlaying ? 'Pause simulation' : 'Auto-step through execution'}
+              >
+                {isPlaying ? <Pause size={12} /> : <Play size={12} />}
+              </button>
+
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={handleNextStep}
+                disabled={currentStepIndex >= stepTrace.length - 1}
+                title="Step to next iteration"
+              >
+                <SkipForward size={12} />
+              </button>
+
+              <span className="sim-step-indicator">
+                Step {stepTrace.length > 0 ? currentStepIndex + 1 : 0} of {stepTrace.length}
+              </span>
+            </div>
+          </div>
+
+          {currentStep ? (
+            <div>
+              <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                Currently inspecting execution frame at <strong style={{ color: 'var(--accent-primary-light)' }}>Line {currentStep.line}</strong>:
+              </div>
+
+              <table className="variable-watch-table">
+                <thead>
+                  <tr>
+                    <th>Variable Name</th>
+                    <th>Value / State</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div style={{ color: 'var(--text-muted)', fontSize: '12.5px', padding: '10px 0' }}>
-            Select a preset algorithmic snippet or run code with breakpoints to trace variable snapshots.
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {Object.entries(currentStep.vars).map(([name, val]) => (
+                    <tr key={name}>
+                      <td className="var-name">{name}</td>
+                      <td className="var-val">
+                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '12.5px', padding: '10px 0' }}>
+              Select a preset algorithmic snippet or run code with breakpoints to trace variable snapshots.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

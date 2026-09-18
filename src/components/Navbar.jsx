@@ -5,10 +5,13 @@ import {
   SearchCode, 
   GitCompare, 
   Key, 
-  Sparkles,
-  RefreshCw,
-  FileCode2,
-  Upload
+  Sparkles, 
+  RefreshCw, 
+  FileCode2, 
+  Upload,
+  GitBranch,
+  Share2,
+  Palette
 } from 'lucide-react';
 
 export function Navbar({
@@ -23,6 +26,10 @@ export function Navbar({
   onToggleDiffMode,
   onOpenApiKeyModal,
   onOpenImportModal,
+  onOpenCiCdModal,
+  onOpenShareModal,
+  currentTheme = 'obsidian',
+  onSelectTheme,
   hasApiKey,
   isRunning
 }) {
@@ -49,7 +56,7 @@ export function Navbar({
             onChange={(e) => onSelectLanguage && onSelectLanguage(e.target.value)}
           >
             <option value="javascript">JavaScript (ES2024)</option>
-            <option value="python">Python 3.12</option>
+            <option value="python">Python 3.12 (WASM)</option>
             <option value="java">Java (OpenJDK 21)</option>
             <option value="cpp">C++ (C++20)</option>
           </select>
@@ -72,6 +79,22 @@ export function Navbar({
           </select>
         </div>
 
+        {/* Theme Switcher */}
+        <div className="select-control-group">
+          <Palette size={14} color="var(--accent-primary-light)" />
+          <select 
+            id="theme-select"
+            value={currentTheme || 'obsidian'}
+            onChange={(e) => onSelectTheme && onSelectTheme(e.target.value)}
+            title="Switch Studio Theme"
+          >
+            <option value="obsidian">Obsidian Dark</option>
+            <option value="cyberpunk">Cyberpunk Neon</option>
+            <option value="tokyo">Tokyo Midnight</option>
+            <option value="monokai">Monokai Pro</option>
+          </select>
+        </div>
+
         <button 
           id="toggle-diff-btn"
           className={`btn ${isDiffMode ? 'btn-primary' : 'btn-secondary'} btn-sm`}
@@ -89,7 +112,7 @@ export function Navbar({
           className="btn btn-secondary"
           onClick={onRunCode}
           disabled={isRunning}
-          title="Execute code in safe browser sandbox"
+          title="Execute code in safe browser sandbox (or Pyodide WASM)"
         >
           <Play size={14} fill="currentColor" color="var(--accent-emerald)" />
           <span>Run Sandbox</span>
@@ -118,6 +141,26 @@ export function Navbar({
         >
           <Upload size={14} />
           <span>Import</span>
+        </button>
+
+        <button 
+          id="btn-cicd"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenCiCdModal}
+          title="Generate GitHub Actions CI/CD Pipeline"
+        >
+          <GitBranch size={14} />
+          <span>CI/CD</span>
+        </button>
+
+        <button 
+          id="btn-share"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenShareModal}
+          title="Share Workspace Link or Export JSON Audit"
+        >
+          <Share2 size={14} />
+          <span>Share</span>
         </button>
 
         <button 

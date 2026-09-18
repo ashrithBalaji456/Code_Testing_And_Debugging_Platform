@@ -13,7 +13,7 @@ import {
 
 import { SNIPPETS } from './data/snippets';
 import { analyzeCode } from './services/analyzerEngine';
-import { executeCode } from './services/executionEngine';
+import { executeCode, executeCodeAsync } from './services/executionEngine';
 import { runTests, generateTestsFromCode } from './services/testEngine';
 
 import { Navbar } from './components/Navbar';
@@ -26,6 +26,8 @@ import { TestRunner } from './components/TestRunner';
 import { AiChat } from './components/AiChat';
 import { ApiKeyModal } from './components/ApiKeyModal';
 import { ImportModal } from './components/ImportModal';
+import { CiCdModal } from './components/CiCdModal';
+import { ShareModal } from './components/ShareModal';
 
 export default function App() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -47,11 +49,44 @@ export default function App() {
   const [logs, setLogs] = useState([]);
   const [highlightedLine, setHighlightedLine] = useState(null);
 
-  // Gemini API key state
+  // Gemini API key state & modals
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isCiCdModalOpen, setIsCiCdModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
+
+  // Sync theme with DOM root attribute
+  useEffect(() => {
+    if (currentTheme === 'obsidian') {
+      document.documentElement.removeAttribute('data-theme');
+    } else {
+      document.documentElement.setAttribute('data-theme', currentTheme);
+    }
+    localStorage.setItem('devpulse_theme', currentTheme);
+  }, [currentTheme]);
+
+  // Load shared workspace if URL has #share= hash
+  useEffect(() => {
+    if (window.location.hash.startsWith('#share=')) {
+      try {
+        const hashData = window.location.hash.replace('#share=', '');
+        const decoded = JSON.parse(decodeURIComponent(escape(atob(hashData))));
+        if (decoded && decoded.c) {
+          setCode(decoded.c);
+          if (decoded.l) setSelectedLanguage(decoded.l);
+          setLogs(prev => [
+            ...prev,
+            { type: 'success', message: 'Successfully restored workspace session from shared URL hash.', time: new Date().toLocaleTimeString() }
+          ]);
+        }
+      } catch (err) {
+        console.warn('Could not parse share hash', err);
+      }
+    }
+  }, []);
 
   const getFileName = () => {
     switch (selectedLanguage) {
@@ -116,10 +151,21 @@ export default function App() {
     setAnalysis(res);
   }, [code, selectedLanguage]);
 
-  // Execute Sandbox Run
-  const handleRunCode = () => {
+  // Execute Sandbox Run (with Pyodide WebAssembly for Python)
+  const handleRunCode = async () => {
     setIsRunning(true);
-    const result = executeCode(code, selectedLanguage);
+    setLogs(prev => [
+      ...prev,
+      { type: 'info', message: `Initializing ${selectedLanguage.toUpperCase()} sandbox runtime...`, time: new Date().toLocaleTimeString() }
+    ]);
+
+    const result = await executeCodeAsync(code, selectedLanguage, (progressMsg) => {
+      setLogs(prev => [
+        ...prev,
+        { type: 'info', message: progressMsg, time: new Date().toLocaleTimeString() }
+      ]);
+    });
+
     setExecutionResult(result);
     setLogs(prev => [...prev, ...result.logs]);
 
@@ -136,7 +182,7 @@ export default function App() {
   // Manual Trigger for Review & Audit
   const handleRunAnalysis = () => {
     setIsRunning(true);
-    const res = analyzeCode(code);
+    const res = analyzeCode(code, selectedLanguage);
     setAnalysis(res);
     setActiveTab('review');
 
@@ -242,6 +288,10 @@ export default function App() {
         onToggleDiffMode={() => setIsDiffMode(!isDiffMode)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
         onOpenImportModal={() => setIsImportModalOpen(true)}
+        onOpenCiCdModal={() => setIsCiCdModalOpen(true)}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+        currentTheme={currentTheme}
+        onSelectTheme={setCurrentTheme}
         hasApiKey={!!geminiApiKey}
         isRunning={isRunning}
       />
@@ -367,6 +417,8 @@ export default function App() {
 
           {activeTab === 'debug' && (
             <Debugger
+              code={code}
+              language={selectedLanguage}
               executionResult={executionResult}
               stepTrace={currentSnippet.stepTrace || []}
               simulatedError={currentSnippet.simulatedTrace || null}
@@ -407,6 +459,23 @@ export default function App() {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         onImportCode={handleImportCode}
+      />
+
+      {/* CI/CD GitHub Actions Modal */}
+      <CiCdModal
+        isOpen={isCiCdModalOpen}
+        onClose={() => setIsCiCdModalOpen(false)}
+        language={selectedLanguage}
+      />
+
+      {/* Workspace Share & JSON Export Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        code={code}
+        language={selectedLanguage}
+        analysis={analysis}
+        testCases={testCases}
       />
 
       {/* Optional Gemini AI Key Modal */}
