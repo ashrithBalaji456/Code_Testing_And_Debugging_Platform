@@ -26,8 +26,11 @@ import { TestRunner } from './components/TestRunner';
 import { ApiKeyModal } from './components/ApiKeyModal';
 
 export default function App() {
+  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+  const filteredSnippets = SNIPPETS.filter(s => s.language === selectedLanguage);
+
   const [selectedSnippetId, setSelectedSnippetId] = useState(SNIPPETS[0].id);
-  const currentSnippet = SNIPPETS.find(s => s.id === selectedSnippetId) || SNIPPETS[0];
+  const currentSnippet = SNIPPETS.find(s => s.id === selectedSnippetId) || filteredSnippets[0] || SNIPPETS[0];
 
   const [code, setCode] = useState(currentSnippet.code);
   const [fixedCode, setFixedCode] = useState(currentSnippet.fixedCode);
@@ -35,7 +38,7 @@ export default function App() {
   const [isDiffMode, setIsDiffMode] = useState(false);
 
   // Analysis & Testing state
-  const [analysis, setAnalysis] = useState(() => analyzeCode(currentSnippet.code));
+  const [analysis, setAnalysis] = useState(() => analyzeCode(currentSnippet.code, currentSnippet.language));
   const [executionResult, setExecutionResult] = useState(null);
   const [testCases, setTestCases] = useState(currentSnippet.testCases);
   const [testResults, setTestResults] = useState(null);
@@ -47,12 +50,24 @@ export default function App() {
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
 
+  // Handle switching language
+  const handleSelectLanguage = (newLang) => {
+    setSelectedLanguage(newLang);
+    const matching = SNIPPETS.filter(s => s.language === newLang);
+    if (matching.length > 0) {
+      handleSelectSnippet(matching[0].id);
+    }
+  };
+
   // When snippet changes, load its data
   const handleSelectSnippet = (snippetId) => {
     const snip = SNIPPETS.find(s => s.id === snippetId);
     if (!snip) return;
 
     setSelectedSnippetId(snippetId);
+    if (snip.language) {
+      setSelectedLanguage(snip.language);
+    }
     setCode(snip.code);
     setFixedCode(snip.fixedCode);
     setTestCases(snip.testCases);
@@ -60,25 +75,25 @@ export default function App() {
     setExecutionResult(null);
     setHighlightedLine(null);
 
-    const initialAnalysis = analyzeCode(snip.code);
+    const initialAnalysis = analyzeCode(snip.code, snip.language);
     setAnalysis(initialAnalysis);
 
     setLogs([
-      { type: 'info', message: `Loaded scenario: "${snip.name}"`, time: new Date().toLocaleTimeString() },
+      { type: 'info', message: `Switched language to [${snip.language.toUpperCase()}] - Loaded scenario: "${snip.name}"`, time: new Date().toLocaleTimeString() },
       { type: 'warn', message: `Notice: Code contains intentional bugs & vulnerabilities for demonstration.`, time: new Date().toLocaleTimeString() }
     ]);
   };
 
   // Re-run static analysis whenever code changes
   useEffect(() => {
-    const res = analyzeCode(code);
+    const res = analyzeCode(code, selectedLanguage);
     setAnalysis(res);
-  }, [code]);
+  }, [code, selectedLanguage]);
 
   // Execute Sandbox Run
   const handleRunCode = () => {
     setIsRunning(true);
-    const result = executeCode(code);
+    const result = executeCode(code, selectedLanguage);
     setExecutionResult(result);
     setLogs(prev => [...prev, ...result.logs]);
 
@@ -190,9 +205,11 @@ export default function App() {
     <div className="app-container">
       {/* Top Navigation */}
       <Navbar
-        snippets={SNIPPETS}
+        snippets={filteredSnippets}
         selectedSnippetId={selectedSnippetId}
         onSelectSnippet={handleSelectSnippet}
+        selectedLanguage={selectedLanguage}
+        onSelectLanguage={handleSelectLanguage}
         onRunAnalysis={handleRunAnalysis}
         onRunCode={handleRunCode}
         isDiffMode={isDiffMode}
@@ -210,7 +227,7 @@ export default function App() {
             <div className="editor-tabs">
               <div className="editor-tab-item">
                 <span className="editor-tab-badge" />
-                <span>solution.js</span>
+                <span>{selectedLanguage === 'python' ? 'solution.py' : 'solution.js'}</span>
               </div>
             </div>
 
@@ -325,6 +342,7 @@ export default function App() {
           {activeTab === 'test' && (
             <TestRunner
               code={code}
+              language={selectedLanguage}
               testCases={testCases}
               testResults={testResults}
               onRunAllTests={handleRunAllTests}

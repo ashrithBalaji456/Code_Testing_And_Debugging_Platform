@@ -14,6 +14,8 @@ export function Navbar({
   snippets,
   selectedSnippetId,
   onSelectSnippet,
+  selectedLanguage,
+  onSelectLanguage,
   onRunAnalysis,
   onRunCode,
   isDiffMode,
@@ -36,6 +38,20 @@ export function Navbar({
       </div>
 
       <div className="navbar-controls">
+        {/* Language Selector */}
+        <div className="select-control-group">
+          <label htmlFor="language-select" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Language:</label>
+          <select 
+            id="language-select"
+            value={selectedLanguage || 'javascript'}
+            onChange={(e) => onSelectLanguage && onSelectLanguage(e.target.value)}
+          >
+            <option value="javascript">JavaScript (ES2024)</option>
+            <option value="python">Python 3.12</option>
+          </select>
+        </div>
+
+        {/* Preset Scenario Selector */}
         <div className="select-control-group">
           <FileCode2 size={15} color="var(--accent-primary-light)" />
           <label htmlFor="snippet-select" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Scenario:</label>

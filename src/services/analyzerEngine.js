@@ -241,6 +241,103 @@ export function analyzeCode(code, language = 'javascript') {
     maintainabilityDeduction += 12;
   }
 
+  // Python Specific Rule 1: f-string SQL Query Injection
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/f["'].*(SELECT|INSERT|UPDATE|DELETE|WHERE).*\{[a-zA-Z0-9_]+\}/i.test(line)) {
+      findings.push({
+        id: `py-sqli-${lineNum}`,
+        line: lineNum,
+        severity: 'critical',
+        category: 'Security',
+        title: 'Python f-string SQL Injection Vulnerability',
+        description: 'Constructing SQL statements with f-string interpolation directly concatenates user input into SQL syntax without escaping (OWASP A03 / CWE-89).',
+        originalCode: line.trim(),
+        suggestedFix: line.replace(/f(["']).*\{([a-zA-Z0-9_]+)\}.*\1/, '"SELECT ... WHERE col = ?"  # Use cursor.execute(query, (params,))'),
+        recommendation: 'Use DB-API parameterized queries with placeholder markers (e.g. ? or %s) and pass parameters as a tuple.'
+      });
+      securityDeduction += 35;
+    }
+  });
+
+  // Python Specific Rule 2: Mutable Default Argument Gotcha
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    const match = line.match(/def\s+[a-zA-Z0-9_]+\([^)]*([a-zA-Z0-9_]+)\s*=\s*(\[\]|\{\}|set\(\))/);
+    if (match) {
+      const paramName = match[1];
+      findings.push({
+        id: `py-mutable-default-${lineNum}`,
+        line: lineNum,
+        severity: 'warning',
+        category: 'Code Quality',
+        title: `Mutable Default Argument in Function Definition ('${paramName}')`,
+        description: `Python evaluates default parameters once when the function is defined. Using a mutable object (${match[2]}) means all calls share and mutate the exact same instance in memory.`,
+        originalCode: line.trim(),
+        suggestedFix: line.replace(new RegExp(`${paramName}\\s*=\\s*(\\[\\]|\\{\\}|set\\(\\))`), `${paramName}=None`),
+        recommendation: 'Use None as the default value and initialize the mutable object inside the function body (e.g. if arg is None: arg = []).'
+      });
+      maintainabilityDeduction += 18;
+    }
+  });
+
+  // Python Specific Rule 3: Bare except clause
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/^\s*except\s*:/.test(line)) {
+      findings.push({
+        id: `py-bare-except-${lineNum}`,
+        line: lineNum,
+        severity: 'warning',
+        category: 'Best Practices',
+        title: 'Bare "except:" Clause Catches System Exits',
+        description: 'A bare except: catches BaseException, which intercepts KeyboardInterrupt, SystemExit, and memory errors, making programs difficult to terminate cleanly (PEP 8 / E722).',
+        originalCode: line.trim(),
+        suggestedFix: 'except Exception as err:  # Or specific exception like sqlite3.Error',
+        recommendation: 'Always specify the exception class you intend to handle, such as `except Exception:` or `except SpecificError:`.'
+      });
+      maintainabilityDeduction += 12;
+    }
+  });
+
+  // Python Specific Rule 4: Comparison to None using == instead of is
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/(==\s*None|!=\s*None)/.test(line) && !line.includes('#')) {
+      findings.push({
+        id: `py-none-check-${lineNum}`,
+        line: lineNum,
+        severity: 'info',
+        category: 'Code Quality',
+        title: 'Comparison to None should use "is" or "is not" (PEP 8)',
+        description: 'Comparing singleton None using equality operators (== or !=) invokes the object\'s __eq__ method, whereas identity check `is None` is faster and unambiguous.',
+        originalCode: line.trim(),
+        suggestedFix: line.replace(/==\s*None/, 'is None').replace(/!=\s*None/, 'is not None'),
+        recommendation: 'Use `if var is None:` or `if var is not None:` as recommended by PEP 8.'
+      });
+      maintainabilityDeduction += 5;
+    }
+  });
+
+  // Python Specific Rule 5: Hardcoded SECRET_KEY in Python
+  lines.forEach((line, idx) => {
+    const lineNum = idx + 1;
+    if (/SECRET_KEY\s*=\s*["'][^"']+["']/.test(line) && !line.includes('os.environ')) {
+      findings.push({
+        id: `py-secret-${lineNum}`,
+        line: lineNum,
+        severity: 'critical',
+        category: 'Security',
+        title: 'Hardcoded Python Flask/Django SECRET_KEY',
+        description: 'Hardcoded cryptographic keys used for session signing or tokens can be leaked via git and compromise user sessions.',
+        originalCode: line.trim(),
+        suggestedFix: 'SECRET_KEY = os.environ.get("SECRET_KEY", "fallback_dev_key")',
+        recommendation: 'Read application secrets from os.environ or python-dotenv.'
+      });
+      securityDeduction += 30;
+    }
+  });
+
   // Compute final scores
   const securityScore = Math.max(15, Math.min(100, 100 - securityDeduction));
   const performanceScore = Math.max(20, Math.min(100, 100 - performanceDeduction));

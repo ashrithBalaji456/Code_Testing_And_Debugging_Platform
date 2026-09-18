@@ -12,10 +12,11 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react';
-import { exportToJest } from '../services/testEngine';
+import { exportToJest, exportToPyTest } from '../services/testEngine';
 
 export function TestRunner({
   code,
+  language = 'javascript',
   testCases,
   testResults,
   onRunAllTests,
@@ -58,12 +59,16 @@ export function TestRunner({
   };
 
   const handleExportTests = () => {
-    const jestCode = exportToJest(code, testCases);
-    const blob = new Blob([jestCode], { type: 'application/javascript' });
+    const isPython = language === 'python';
+    const testCode = isPython ? exportToPyTest(code, testCases) : exportToJest(code, testCases);
+    const fileName = isPython ? `test_solution.py` : `solution.test.js`;
+    const mimeType = isPython ? 'text/x-python' : 'application/javascript';
+
+    const blob = new Blob([testCode], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `solution.test.js`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -146,10 +151,10 @@ export function TestRunner({
             id="btn-export-test-code"
             className="btn btn-secondary btn-sm"
             onClick={handleExportTests}
-            title="Export test suite as Jest / Vitest JavaScript file"
+            title={language === 'python' ? "Export test suite as PyTest Python script" : "Export test suite as Jest / Vitest JavaScript file"}
           >
             <Download size={13} />
-            <span>Export Jest</span>
+            <span>{language === 'python' ? 'Export PyTest' : 'Export Jest'}</span>
           </button>
         </div>
       </div>

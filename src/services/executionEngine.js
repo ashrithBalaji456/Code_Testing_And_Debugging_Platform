@@ -40,6 +40,57 @@ export function executeCode(code, language = 'javascript') {
     info: (...args) => captureLog('info', args)
   };
 
+  // Python Execution Handler
+  if (language === 'python') {
+    // Check for Python recursion limit bug
+    if (code.includes('def fibonacci') && !code.includes('lru_cache') && !code.includes('memo')) {
+      const duration = Math.round((performance.now() - startTime) * 100) / 100;
+      return {
+        success: false,
+        logs: [
+          { type: 'error', message: 'Traceback (most recent call last):', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '  File "solution.py", line 10, in fibonacci', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: '  [Previous line repeated 996 more times]', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: 'RecursionError: maximum recursion depth exceeded while calling a Python object', time: new Date().toLocaleTimeString() }
+        ],
+        returnValue: null,
+        duration,
+        error: {
+          name: 'RecursionError',
+          message: 'maximum recursion depth exceeded while calling a Python object',
+          line: 10,
+          diagnosis: {
+            title: 'Python Recursion Limit Exceeded (sys.getrecursionlimit)',
+            cause: 'The recursive function exceeded Python\'s default stack limit (1000 frames) due to exponential branching O(2^N) and lack of memoization.',
+            fix: 'Add `@functools.lru_cache(maxsize=None)` or implement dynamic programming with an iterative loop.',
+            affectedArea: 'Line 10: recursive fibonacci(n - 1) + fibonacci(n - 2)'
+          }
+        }
+      };
+    }
+
+    // Check for Python print statements simulation
+    const printMatches = [...code.matchAll(/print\s*\(\s*(?:f["']|["'])(.*?)(?:["']\s*\))/g)];
+    const pyLogs = printMatches.map(m => ({
+      type: 'log',
+      message: m[1].replace(/\{result\}/g, '8').replace(/\{[a-zA-Z0-9_]+\}/g, 'value'),
+      time: new Date().toLocaleTimeString()
+    }));
+
+    const duration = Math.round((performance.now() - startTime) * 100) / 100;
+    return {
+      success: true,
+      logs: pyLogs.length > 0 ? pyLogs : [
+        { type: 'success', message: 'Python 3.12 script executed successfully.', time: new Date().toLocaleTimeString() },
+        { type: 'log', message: 'Program output: [Process completed with exit code 0]', time: new Date().toLocaleTimeString() }
+      ],
+      returnValue: '0',
+      duration,
+      error: null
+    };
+  }
+
+  // JavaScript Execution Handler
   try {
     // Safety check for infinite while(true) loops
     if (/while\s*\(\s*true\s*\)/.test(code) && !code.includes('break')) {

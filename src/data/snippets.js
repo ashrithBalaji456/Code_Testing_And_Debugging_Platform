@@ -319,5 +319,182 @@ class MetricsFeed {
       { step: 3, line: 14, vars: { activeIntervals: 1, timerRef: 'lost in local scope' } },
       { step: 4, line: 8, vars: { socketListeners: 3, activeIntervals: 2, state: 'CRITICAL MEMORY LEAK' } }
     ]
+  },
+  {
+    id: 'python-fibonacci',
+    name: 'Python: Buggy Recursion (RecursionLimit)',
+    language: 'python',
+    category: 'Algorithms & Logic',
+    description: 'Python exponential recursion with off-by-one base cases causing RecursionError: maximum recursion depth exceeded.',
+    code: `# Computes the N-th Fibonacci number in Python
+def fibonacci(n):
+    # BUG 1: Missing negative number guard
+    # BUG 2: Incorrect base case (fib(0) should be 0, not 1)
+    if n <= 1:
+        return 1
+
+    # BUG 3: Unmemoized exponential recursion O(2^N)
+    # BUG 4: Exceeds default sys.getrecursionlimit() on large inputs
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# Sample run
+result = fibonacci(6)
+print(f"Fibonacci(6) = {result}")
+`,
+    fixedCode: `# Computes the N-th Fibonacci number with functools.lru_cache and type guards
+from functools import lru_cache
+
+@lru_cache(maxsize=1024)
+def fibonacci(n: int) -> int:
+    if not isinstance(n, int) or n < 0:
+        raise ValueError("Fibonacci input must be a non-negative integer.")
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# Sample run
+result = fibonacci(6)
+print(f"Fibonacci(6) = {result}")
+`,
+    simulatedTrace: `RecursionError: maximum recursion depth exceeded while calling a Python object
+  File "solution.py", line 10, in fibonacci
+  File "solution.py", line 10, in fibonacci
+  File "solution.py", line 10, in fibonacci`,
+    testCases: [
+      { id: 'py-fib-1', name: 'Base case fib(0)', input: '0', expected: '0', type: 'Edge' },
+      { id: 'py-fib-2', name: 'Base case fib(1)', input: '1', expected: '1', type: 'Happy' },
+      { id: 'py-fib-3', name: 'Standard fib(6)', input: '6', expected: '8', type: 'Happy' },
+      { id: 'py-fib-4', name: 'Double digit fib(10)', input: '10', expected: '55', type: 'Happy' },
+      { id: 'py-fib-5', name: 'Negative value fib(-4)', input: '-4', expected: 'Error', type: 'Error' },
+      { id: 'py-fib-6', name: 'High order fib(25)', input: '25', expected: '75025', type: 'Performance' }
+    ],
+    stepTrace: [
+      { step: 1, line: 2, vars: { n: 4, depth: 1, func: 'fibonacci' } },
+      { step: 2, line: 10, vars: { n: 4, branch: 'fib(3)', depth: 2 } },
+      { step: 3, line: 2, vars: { n: 3, depth: 3, branch: 'fib(2)' } },
+      { step: 4, line: 6, vars: { n: 1, reached_base: true, returned: 1 } },
+      { step: 5, line: 10, vars: { n: 2, left_res: 1, recursing: 'fib(0)' } },
+      { step: 6, line: 6, vars: { n: 0, bug_return: 1, expected: 0 } },
+      { step: 7, line: 10, vars: { final_n_4: 3, call_count: 9 } }
+    ]
+  },
+  {
+    id: 'python-mutable-default',
+    name: 'Python: Mutable Default Argument Gotcha',
+    language: 'python',
+    category: 'Language Quirks',
+    description: 'A classic Python gotcha where a mutable list default argument accumulates state across independent function calls.',
+    code: `# Task management helper with mutable default argument
+def add_task(title, priority="medium", task_list=[]):
+    # BUG: task_list=[] is evaluated ONCE at function definition time!
+    # Subsequent calls share and mutate the exact same list instance in memory.
+    task_list.append({"title": title, "priority": priority})
+    return task_list
+
+# Demonstration of the accumulation bug:
+user1_tasks = add_task("Write unit tests")
+print("User 1 tasks:", user1_tasks)
+
+user2_tasks = add_task("Deploy to prod")
+print("User 2 tasks:", user2_tasks) # BUG: Contains User 1's tasks!
+`,
+    fixedCode: `# Task management helper (Fixed with None default pattern)
+from typing import Optional, List, Dict
+
+def add_task(title: str, priority: str = "medium", task_list: Optional[List[Dict]] = None) -> List[Dict]:
+    # FIX: Use None sentinel to instantiate a fresh list on each invocation
+    if task_list is None:
+        task_list = []
+    
+    task_list.append({"title": title, "priority": priority})
+    return task_list
+
+# Demonstration:
+user1_tasks = add_task("Write unit tests")
+print("User 1 tasks:", user1_tasks)
+
+user2_tasks = add_task("Deploy to prod")
+print("User 2 tasks:", user2_tasks)
+`,
+    simulatedTrace: `StateAccumulationError: Variable 'task_list' retained 2 items across isolated calls.
+  Call 1 produced 1 items.
+  Call 2 produced 2 items instead of 1.
+  Default parameter evaluated at compile time: id(task_list) is shared.`,
+    testCases: [
+      { id: 'py-mut-1', name: 'First invocation length 1', input: '"Task A"', expected: '[{"title": "Task A", "priority": "medium"}]', type: 'Happy' },
+      { id: 'py-mut-2', name: 'Second invocation isolation', input: '"Task B"', expected: '[{"title": "Task B", "priority": "medium"}]', type: 'Edge' },
+      { id: 'py-mut-3', name: 'Explicit existing list', input: '("Task C", "high", [{"title": "Old"}])', expected: '2 items', type: 'Happy' }
+    ],
+    stepTrace: [
+      { step: 1, line: 2, vars: { default_arg_id: '0x7f9a10', items_in_default: 0 } },
+      { step: 2, line: 5, vars: { call_1: 'user1', default_arg_id: '0x7f9a10', count: 1 } },
+      { step: 3, line: 2, vars: { call_2: 'user2', default_arg_id: '0x7f9a10', BUG_RETAINED_ITEMS: 1 } },
+      { step: 4, line: 5, vars: { call_2_result_count: 2, leaked_data: 'Cross-call state pollution' } }
+    ]
+  },
+  {
+    id: 'python-flask-sqli',
+    name: 'Python: Flask / SQLite f-string SQL Injection',
+    language: 'python',
+    category: 'Security & Auth',
+    description: 'Python web endpoint using vulnerable f-string SQL query formatting, hardcoded SECRET_KEY, and bare except blocks.',
+    code: `import sqlite3
+
+# SECURITY BUG 1: Hardcoded cryptographic secret
+SECRET_KEY = "insecure_dev_secret_key_998877"
+
+def get_user_profile(db_connection, username):
+    # SECURITY BUG 2: f-string SQL query string interpolation (SQL Injection)
+    query = f"SELECT id, username, email FROM users WHERE username = '{username}'"
+    print(f"Executing query: {query}")
+    
+    cursor = db_connection.cursor()
+    
+    # BUG 3: Bare except clause suppresses keyboard interrupt and critical errors
+    try:
+        cursor.execute(query)
+        return cursor.fetchone()
+    except:
+        return None
+`,
+    fixedCode: `import sqlite3
+import os
+
+# Secured via environment variable
+SECRET_KEY = os.environ.get("SECRET_KEY", "")
+
+def get_user_profile(db_connection, username: str):
+    if not username or not isinstance(username, str):
+        raise ValueError("Invalid username parameter.")
+        
+    # FIX: Parameterized query using ? placeholder prevents SQL injection
+    query = "SELECT id, username, email FROM users WHERE username = ?"
+    cursor = db_connection.cursor()
+    
+    try:
+        cursor.execute(query, (username,))
+        return cursor.fetchone()
+    except sqlite3.DatabaseError as err:
+        print(f"Database query error: {err}")
+        return None
+`,
+    simulatedTrace: `SecurityAlert: SQL Injection Vector detected in f-string query!
+  File "solution.py", line 8, in get_user_profile
+  Rendered query: SELECT id, username, email FROM users WHERE username = 'admin' OR '1'='1'
+  Unescaped quotes bypass authentication filter.`,
+    testCases: [
+      { id: 'py-sql-1', name: 'Normal lookup', input: '(db, "alice")', expected: 'Valid profile', type: 'Happy' },
+      { id: 'py-sql-2', name: 'SQLi attack payload: \' OR \'1\'=\'1', input: '(db, "admin\' OR \'1\'=\'1")', expected: 'None', type: 'Security' },
+      { id: 'py-sql-3', name: 'SQLi stacked query attack', input: '(db, "admin\'; DROP TABLE users;--")', expected: 'None', type: 'Security' },
+      { id: 'py-sql-4', name: 'Null or empty username', input: '(db, "")', expected: 'Error', type: 'Edge' }
+    ],
+    stepTrace: [
+      { step: 1, line: 7, vars: { username: "admin' OR '1'='1", func: 'get_user_profile' } },
+      { step: 2, line: 8, vars: { raw_fstring: "SELECT ... WHERE username = 'admin' OR '1'='1'" } },
+      { step: 3, line: 15, vars: { alert: 'OWASP Top 10: A03 Injection via unescaped f-string' } },
+      { step: 4, line: 16, vars: { db_compromised: true } }
+    ]
   }
 ];
