@@ -18,6 +18,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import { CustomDropdown } from './CustomDropdown';
+
 export function Navbar({
   snippets,
   selectedSnippetId,
@@ -79,6 +81,27 @@ export function Navbar({
 
   const currentSnippet = snippets.find((s) => s.id === selectedSnippetId);
 
+  const languageOptions = [
+    { value: 'javascript', label: 'JavaScript (ES2024)', badge: 'JS', badgeColor: '#f7df1e' },
+    { value: 'python', label: 'Python 3.12 (WASM)', badge: 'PY', badgeColor: '#38bdf8' },
+    { value: 'java', label: 'Java (OpenJDK 21)', badge: 'JAVA', badgeColor: '#f97316' },
+    { value: 'cpp', label: 'C++ (C++20)', badge: 'C++', badgeColor: '#a855f7' },
+  ];
+
+  const scenarioOptions = snippets.map((snip) => ({
+    value: snip.id,
+    label: snip.name,
+    badge: snip.language?.toUpperCase() || 'CODE',
+    badgeColor: snip.language === 'python' ? '#38bdf8' : snip.language === 'java' ? '#f97316' : snip.language === 'cpp' ? '#a855f7' : '#f7df1e'
+  }));
+
+  const themeOptions = [
+    { value: 'obsidian', label: 'Obsidian Dark', dotColor: '#6366f1' },
+    { value: 'cyberpunk', label: 'Cyberpunk Neon', dotColor: '#ec4899' },
+    { value: 'tokyo', label: 'Tokyo Midnight', dotColor: '#7aa2f7' },
+    { value: 'monokai', label: 'Monokai Pro', dotColor: '#ffd866' },
+  ];
+
   return (
     <header className="navbar-wrapper">
       {canScrollLeft && (
@@ -110,56 +133,43 @@ export function Navbar({
         </div>
 
         <div className="navbar-controls">
-          {/* Language Selector */}
-          <div className="select-control-group" title="Select Programming Language">
-            <label htmlFor="language-select">Language:</label>
-            <select 
-              id="language-select"
-              value={selectedLanguage || 'javascript'}
-              onChange={(e) => onSelectLanguage && onSelectLanguage(e.target.value)}
-              title="Select Programming Language"
-            >
-              <option value="javascript">JavaScript (ES2024)</option>
-              <option value="python">Python 3.12 (WASM)</option>
-              <option value="java">Java (OpenJDK 21)</option>
-              <option value="cpp">C++ (C++20)</option>
-            </select>
-          </div>
+          {/* Custom Language Selector */}
+          <CustomDropdown
+            id="language-select"
+            label="Language:"
+            value={selectedLanguage || 'javascript'}
+            options={languageOptions}
+            onChange={(val) => onSelectLanguage && onSelectLanguage(val)}
+            title="Select Programming Language"
+            minWidth={175}
+            maxWidth={220}
+          />
 
-          {/* Preset Scenario Selector */}
-          <div className="select-control-group" title={currentSnippet ? `Scenario: ${currentSnippet.name}` : 'Select Preset Scenario'}>
-            <FileCode2 size={15} color="var(--accent-primary-light)" />
-            <label htmlFor="snippet-select">Scenario:</label>
-            <select 
-              id="snippet-select"
-              value={selectedSnippetId}
-              onChange={(e) => onSelectSnippet(e.target.value)}
-              title={currentSnippet?.name}
-            >
-              {snippets.map((snip) => (
-                <option key={snip.id} value={snip.id} title={snip.name}>
-                  {snip.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Custom Preset Scenario Selector */}
+          <CustomDropdown
+            id="snippet-select"
+            icon={FileCode2}
+            label="Scenario:"
+            value={selectedSnippetId}
+            options={scenarioOptions}
+            onChange={(val) => onSelectSnippet && onSelectSnippet(val)}
+            title={currentSnippet ? `Scenario: ${currentSnippet.name}` : 'Select Preset Scenario'}
+            minWidth={240}
+            maxWidth={320}
+          />
 
-          {/* Theme Switcher */}
-          <div className="select-control-group" title="Switch Studio Theme">
-            <Palette size={14} color="var(--accent-primary-light)" />
-            <label htmlFor="theme-select">Theme:</label>
-            <select 
-              id="theme-select"
-              value={currentTheme || 'obsidian'}
-              onChange={(e) => onSelectTheme && onSelectTheme(e.target.value)}
-              title="Switch Studio Theme"
-            >
-              <option value="obsidian">Obsidian Dark</option>
-              <option value="cyberpunk">Cyberpunk Neon</option>
-              <option value="tokyo">Tokyo Midnight</option>
-              <option value="monokai">Monokai Pro</option>
-            </select>
-          </div>
+          {/* Custom Theme Switcher */}
+          <CustomDropdown
+            id="theme-select"
+            icon={Palette}
+            label="Theme:"
+            value={currentTheme || 'obsidian'}
+            options={themeOptions}
+            onChange={(val) => onSelectTheme && onSelectTheme(val)}
+            title="Switch Studio Theme"
+            minWidth={160}
+            maxWidth={190}
+          />
 
           <button 
             id="toggle-diff-btn"

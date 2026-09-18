@@ -343,6 +343,167 @@ html, body {
   flex-shrink: 0;
 }
 
+/* Custom Dropdown Styling */
+.custom-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  padding: 5px 12px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-primary);
+  flex-shrink: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--trans-fast);
+  outline: none;
+}
+
+.custom-dropdown-trigger:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-highlight);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.25);
+}
+
+.custom-dropdown-trigger.open {
+  border-color: var(--accent-primary-light);
+  background: var(--bg-surface-hover);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+}
+
+.dropdown-leading-icon {
+  color: var(--accent-primary-light);
+  flex-shrink: 0;
+}
+
+.dropdown-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dropdown-selected-text {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dropdown-chevron {
+  color: var(--text-muted);
+  transition: transform var(--trans-fast);
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.dropdown-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--accent-primary-light);
+}
+
+/* Custom Dropdown Floating Menu */
+.custom-dropdown-menu {
+  position: fixed;
+  background: var(--bg-card-solid);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  z-index: 99999;
+  box-shadow: 0 20px 40px -4px rgba(0, 0, 0, 0.8),
+              0 0 20px rgba(99, 102, 241, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 380px;
+  overflow-y: auto;
+  animation: dropdownFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.custom-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all var(--trans-fast);
+  gap: 12px;
+}
+
+.custom-dropdown-item:hover {
+  background: var(--accent-primary-bg);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.custom-dropdown-item.selected {
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.25) 0%, rgba(6, 182, 212, 0.15) 100%);
+  color: var(--text-primary);
+  font-weight: 600;
+  border-left: 3px solid var(--accent-primary-light);
+}
+
+.item-content-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.item-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.item-badge-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.item-label-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-check-icon {
+  color: var(--accent-cyan);
+  flex-shrink: 0;
+}
+
+/* Fallback for select-control-group if needed */
 .select-control-group {
   display: flex;
   align-items: center;
@@ -355,38 +516,6 @@ html, body {
   color: var(--text-secondary);
   flex-shrink: 0;
   white-space: nowrap;
-  transition: border-color var(--trans-fast);
-}
-
-.select-control-group:hover {
-  border-color: var(--border-highlight);
-}
-
-.select-control-group label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.select-control-group select {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  outline: none;
-  white-space: nowrap;
-  max-width: 280px;
-}
-
-.select-control-group select option {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
 }
 
 .nav-actions {
