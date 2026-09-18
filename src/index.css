@@ -203,24 +203,91 @@ html, body {
   overflow: hidden;
 }
 
-/* Navbar */
-.navbar {
+/* Navbar & Header Scroll System */
+.navbar-wrapper {
+  position: relative;
+  width: 100%;
   height: var(--header-height);
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border-default);
+  z-index: 50;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  z-index: 50;
+  overflow: hidden;
+}
+
+.navbar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.45) rgba(15, 23, 42, 0.6);
+}
+
+.navbar::-webkit-scrollbar {
+  height: 4px;
+}
+.navbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+.navbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #6366f1, #06b6d4);
+  border-radius: var(--radius-full);
+}
+.navbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #818cf8, #22d3ee);
+}
+
+.navbar-scroll-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-highlight);
+  color: var(--accent-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 60;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
+  transition: all var(--trans-fast);
+}
+.navbar-scroll-btn:hover {
+  background: var(--accent-primary);
+  color: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 0 16px var(--accent-primary);
+}
+.navbar-scroll-btn.left {
+  left: 6px;
+}
+.navbar-scroll-btn.right {
+  right: 6px;
+}
+
+.navbar-spacer {
+  flex: 1;
+  min-width: 12px;
 }
 
 .brand-section {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .brand-logo-wrapper {
@@ -233,11 +300,13 @@ html, body {
   justify-content: center;
   box-shadow: 0 0 14px rgba(99, 102, 241, 0.5);
   color: #fff;
+  flex-shrink: 0;
 }
 
 .brand-info {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -250,6 +319,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .brand-badge {
@@ -263,12 +333,14 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   -webkit-text-fill-color: var(--accent-primary-light);
+  white-space: nowrap;
 }
 
 .navbar-controls {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .select-control-group {
@@ -277,10 +349,27 @@ html, body {
   gap: 8px;
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
-  padding: 4px 10px;
+  padding: 5px 10px;
   border-radius: var(--radius-md);
   font-size: 13px;
   color: var(--text-secondary);
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: border-color var(--trans-fast);
+}
+
+.select-control-group:hover {
+  border-color: var(--border-highlight);
+}
+
+.select-control-group label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .select-control-group select {
@@ -291,6 +380,8 @@ html, body {
   font-weight: 500;
   cursor: pointer;
   outline: none;
+  white-space: nowrap;
+  max-width: 280px;
 }
 
 .select-control-group select option {
@@ -302,6 +393,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 /* Button System */
@@ -436,12 +528,18 @@ html, body {
   align-items: center;
   justify-content: space-between;
   padding: 0 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  scrollbar-width: thin;
 }
 
 .editor-tabs {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .editor-tab-item {
@@ -456,6 +554,8 @@ html, body {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-primary);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .editor-tab-badge {
@@ -463,6 +563,7 @@ html, body {
   height: 7px;
   border-radius: 50%;
   background: var(--accent-emerald);
+  flex-shrink: 0;
 }
 
 .editor-view-toggles {
@@ -472,6 +573,8 @@ html, body {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   padding: 2px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .view-toggle-btn {
@@ -484,6 +587,8 @@ html, body {
   border-radius: 4px;
   cursor: pointer;
   transition: var(--trans-fast);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .view-toggle-btn.active {
@@ -707,6 +812,11 @@ html, body {
   align-items: center;
   padding: 0 14px;
   gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  scrollbar-width: thin;
 }
 
 .studio-tab-btn {
@@ -722,6 +832,8 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   transition: all var(--trans-fast);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .studio-tab-btn:hover {
@@ -1658,9 +1770,12 @@ html, body {
   gap: 8px;
   padding: 10px 14px;
   overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(15, 23, 42, 0.6);
   flex-shrink: 0;
+  scrollbar-width: thin;
 }
 
 .quick-prompt-chip {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { 
   Code2, 
   Play, 
@@ -13,7 +13,9 @@ import {
   Share2,
   Palette,
   Gauge,
-  FileText
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export function Navbar({
@@ -38,80 +40,142 @@ export function Navbar({
   hasApiKey,
   isRunning
 }) {
+  const navbarRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    if (navbarRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = navbarRef.current;
+      setCanScrollLeft(scrollLeft > 6);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 6);
+    }
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const handleResize = () => checkScroll();
+    window.addEventListener('resize', handleResize);
+    const timer = setTimeout(checkScroll, 200);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timer);
+    };
+  }, [snippets, selectedLanguage]);
+
+  const handleScrollBy = (distance) => {
+    if (navbarRef.current) {
+      navbarRef.current.scrollBy({ left: distance, behavior: 'smooth' });
+      setTimeout(checkScroll, 250);
+    }
+  };
+
+  const handleWheel = (e) => {
+    if (navbarRef.current && e.deltaY !== 0) {
+      navbarRef.current.scrollLeft += e.deltaY;
+      checkScroll();
+    }
+  };
+
+  const currentSnippet = snippets.find((s) => s.id === selectedSnippetId);
+
   return (
-    <header className="navbar">
-      <div className="brand-section">
-        <div className="brand-logo-wrapper">
-          <Code2 size={20} strokeWidth={2.5} />
-        </div>
-        <div className="brand-info">
-          <h1 className="brand-title">
-            DevPulse <span className="brand-badge">Studio</span>
-          </h1>
-        </div>
-      </div>
-
-      <div className="navbar-controls">
-        {/* Language Selector */}
-        <div className="select-control-group">
-          <label htmlFor="language-select" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Language:</label>
-          <select 
-            id="language-select"
-            value={selectedLanguage || 'javascript'}
-            onChange={(e) => onSelectLanguage && onSelectLanguage(e.target.value)}
-          >
-            <option value="javascript">JavaScript (ES2024)</option>
-            <option value="python">Python 3.12 (WASM)</option>
-            <option value="java">Java (OpenJDK 21)</option>
-            <option value="cpp">C++ (C++20)</option>
-          </select>
-        </div>
-
-        {/* Preset Scenario Selector */}
-        <div className="select-control-group">
-          <FileCode2 size={15} color="var(--accent-primary-light)" />
-          <label htmlFor="snippet-select" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Scenario:</label>
-          <select 
-            id="snippet-select"
-            value={selectedSnippetId}
-            onChange={(e) => onSelectSnippet(e.target.value)}
-          >
-            {snippets.map((snip) => (
-              <option key={snip.id} value={snip.id}>
-                {snip.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Theme Switcher */}
-        <div className="select-control-group">
-          <Palette size={14} color="var(--accent-primary-light)" />
-          <select 
-            id="theme-select"
-            value={currentTheme || 'obsidian'}
-            onChange={(e) => onSelectTheme && onSelectTheme(e.target.value)}
-            title="Switch Studio Theme"
-          >
-            <option value="obsidian">Obsidian Dark</option>
-            <option value="cyberpunk">Cyberpunk Neon</option>
-            <option value="tokyo">Tokyo Midnight</option>
-            <option value="monokai">Monokai Pro</option>
-          </select>
-        </div>
-
+    <header className="navbar-wrapper">
+      {canScrollLeft && (
         <button 
-          id="toggle-diff-btn"
-          className={`btn ${isDiffMode ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-          onClick={onToggleDiffMode}
-          title="Compare original code with AI/auto-fixed code"
+          className="navbar-scroll-btn left"
+          onClick={() => handleScrollBy(-280)}
+          title="Scroll header left"
+          aria-label="Scroll header left"
         >
-          <GitCompare size={15} />
-          <span>{isDiffMode ? 'Exit Diff' : 'Diff View'}</span>
+          <ChevronLeft size={16} />
         </button>
-      </div>
+      )}
 
-      <div className="nav-actions">
+      <div 
+        className="navbar" 
+        ref={navbarRef}
+        onScroll={checkScroll}
+        onWheel={handleWheel}
+      >
+        <div className="brand-section">
+          <div className="brand-logo-wrapper">
+            <Code2 size={20} strokeWidth={2.5} />
+          </div>
+          <div className="brand-info">
+            <h1 className="brand-title">
+              DevPulse <span className="brand-badge">Studio</span>
+            </h1>
+          </div>
+        </div>
+
+        <div className="navbar-controls">
+          {/* Language Selector */}
+          <div className="select-control-group" title="Select Programming Language">
+            <label htmlFor="language-select">Language:</label>
+            <select 
+              id="language-select"
+              value={selectedLanguage || 'javascript'}
+              onChange={(e) => onSelectLanguage && onSelectLanguage(e.target.value)}
+              title="Select Programming Language"
+            >
+              <option value="javascript">JavaScript (ES2024)</option>
+              <option value="python">Python 3.12 (WASM)</option>
+              <option value="java">Java (OpenJDK 21)</option>
+              <option value="cpp">C++ (C++20)</option>
+            </select>
+          </div>
+
+          {/* Preset Scenario Selector */}
+          <div className="select-control-group" title={currentSnippet ? `Scenario: ${currentSnippet.name}` : 'Select Preset Scenario'}>
+            <FileCode2 size={15} color="var(--accent-primary-light)" />
+            <label htmlFor="snippet-select">Scenario:</label>
+            <select 
+              id="snippet-select"
+              value={selectedSnippetId}
+              onChange={(e) => onSelectSnippet(e.target.value)}
+              title={currentSnippet?.name}
+            >
+              {snippets.map((snip) => (
+                <option key={snip.id} value={snip.id} title={snip.name}>
+                  {snip.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Theme Switcher */}
+          <div className="select-control-group" title="Switch Studio Theme">
+            <Palette size={14} color="var(--accent-primary-light)" />
+            <label htmlFor="theme-select">Theme:</label>
+            <select 
+              id="theme-select"
+              value={currentTheme || 'obsidian'}
+              onChange={(e) => onSelectTheme && onSelectTheme(e.target.value)}
+              title="Switch Studio Theme"
+            >
+              <option value="obsidian">Obsidian Dark</option>
+              <option value="cyberpunk">Cyberpunk Neon</option>
+              <option value="tokyo">Tokyo Midnight</option>
+              <option value="monokai">Monokai Pro</option>
+            </select>
+          </div>
+
+          <button 
+            id="toggle-diff-btn"
+            className={`btn ${isDiffMode ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+            onClick={onToggleDiffMode}
+            title="Compare original code with AI/auto-fixed code"
+          >
+            <GitCompare size={15} />
+            <span>{isDiffMode ? 'Exit Diff' : 'Diff View'}</span>
+          </button>
+        </div>
+
+        {/* Dynamic spacer that pushes nav-actions to the right when there is space */}
+        <div className="navbar-spacer" />
+
+        <div className="nav-actions">
         <button 
           id="btn-run-code"
           className="btn btn-secondary"
@@ -208,6 +272,19 @@ export function Navbar({
           <span>{hasApiKey ? 'AI Active' : 'API Key'}</span>
         </button>
       </div>
+      </div>
+
+      {canScrollRight && (
+        <button 
+          className="navbar-scroll-btn right"
+          onClick={() => handleScrollBy(280)}
+          title="Scroll header right to see all tools"
+          aria-label="Scroll header right"
+        >
+          <ChevronRight size={16} />
+        </button>
+      )}
     </header>
   );
 }
+
