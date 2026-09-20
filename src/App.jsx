@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ShieldCheck, 
   Bug, 
   TestTube2, 
   Sparkles, 
   GitCompare, 
-  Terminal as TermIcon,
-  SearchCode,
-  Play,
-  RotateCcw
+  Terminal as TermIcon, 
+  SearchCode, 
+  Play, 
+  RotateCcw 
 } from 'lucide-react';
 
 import { SNIPPETS } from './data/snippets';
 import { analyzeCode } from './services/analyzerEngine';
 import { executeCode, executeCodeAsync } from './services/executionEngine';
-import { runTests, generateTestsFromCode } from './services/testEngine';
+import { runTests, generateTestsFromCode, calculateLineCoverage } from './services/testEngine';
 
 import { Navbar } from './components/Navbar';
 import { Editor } from './components/Editor';
@@ -97,6 +97,17 @@ export default function App() {
   const [testResults, setTestResults] = useState(null);
   const [logs, setLogs] = useState([]);
   const [highlightedLine, setHighlightedLine] = useState(null);
+
+  // Dynamic code coverage calculated from active test cases or execution results
+  const activeCoverageData = useMemo(() => {
+    if (testResults?.coverageMap) {
+      return {
+        coverageMap: testResults.coverageMap,
+        percentage: testResults.coveragePercent
+      };
+    }
+    return calculateLineCoverage(code, testCases);
+  }, [code, testCases, testResults]);
 
   // Gemini API key state & modals
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
@@ -540,11 +551,12 @@ export default function App() {
                 Diff Compare
               </button>
               <button 
+                id="btn-toggle-coverage"
                 className={`view-toggle-btn ${showCoverage ? 'active' : ''}`}
                 onClick={() => setShowCoverage(!showCoverage)}
                 title="Toggle line-level test coverage heatmap in editor"
               >
-                Coverage Heatmap {testResults?.coveragePercent ? `(${testResults.coveragePercent}%)` : ''}
+                Coverage Heatmap ({activeCoverageData.percentage}%)
               </button>
 
               {code.trim() !== currentSnippet.code.trim() && (
@@ -579,8 +591,10 @@ export default function App() {
                 runtimeErrorLine={executionResult?.error?.line}
                 activeLine={highlightedLine}
                 onLineClick={(line) => setHighlightedLine(line)}
-                coverageMap={testResults?.coverageMap || null}
+                coverageMap={activeCoverageData.coverageMap}
+                coveragePercent={activeCoverageData.percentage}
                 showCoverage={showCoverage}
+                onRunTests={handleRunAllTests}
               />
             )}
           </div>

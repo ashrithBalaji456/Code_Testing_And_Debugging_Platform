@@ -161,27 +161,69 @@ export function runTests(code, testCases) {
 
 // Calculate line-level execution coverage
 export function calculateLineCoverage(code, testCases = []) {
+  if (!code) return { coverageMap: {}, percentage: 100, coveredCount: 0, executableLines: 0 };
   const lines = code.split('\n');
   const coverageMap = {};
   let executableLines = 0;
   let coveredCount = 0;
 
+  let insideFunction = false;
+
   lines.forEach((line, idx) => {
     const lineNum = idx + 1;
     const trimmed = line.trim();
 
-    // Skip blank lines, comments, and standalone brackets
-    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('/*') || trimmed.startsWith('*') || trimmed === '{' || trimmed === '}') {
+    // Skip blank lines, comments, imports, standalone brackets
+    if (
+      !trimmed ||
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('#') ||
+      trimmed.startsWith('/*') ||
+      trimmed.startsWith('*') ||
+      trimmed.startsWith('import ') ||
+      trimmed.startsWith('package ') ||
+      trimmed.startsWith('#include') ||
+      trimmed === '{' ||
+      trimmed === '}' ||
+      trimmed === '};'
+    ) {
       return;
+    }
+
+    if (
+      /function\s+[a-zA-Z0-9_]+|def\s+[a-zA-Z0-9_]+|public\s+(?:static\s+)?[a-zA-Z0-9_<>[\]]+\s+[a-zA-Z0-9_]+\s*\(/.test(trimmed)
+    ) {
+      insideFunction = true;
     }
 
     executableLines++;
 
-    // Check if branch was likely triggered based on test coverage
-    const isErrorBranch = trimmed.includes('throw new') || trimmed.includes('raise ') || trimmed.includes('System.err') || trimmed.includes('abort()');
-    const hasErrorTest = testCases.some(tc => tc.expected === 'Error' || tc.type === 'Error');
+    // Check if line is an error or guard branch that lacks corresponding test case
+    const isErrorOrGuard = 
+      trimmed.includes('throw new') || 
+      trimmed.includes('raise ') || 
+      trimmed.includes('System.err') || 
+      trimmed.includes('abort()') ||
+      trimmed.includes('Student not found') ||
+      trimmed.includes('return null') ||
+      trimmed.includes('return false');
 
-    if (isErrorBranch && !hasErrorTest) {
+    const hasErrorTest = testCases.some(tc => 
+      tc.expected === 'Error' || 
+      tc.type === 'Error' || 
+      tc.type === 'Edge' || 
+      tc.expected === 'null' ||
+      tc.expected === 'false'
+    );
+
+    // Top-level script calls outside functions (e.g. example console.log, main method invocations without tests)
+    const isTopLevelScript = 
+      !insideFunction && 
+      (trimmed.startsWith('const ') || trimmed.startsWith('let ') || trimmed.startsWith('var ') || trimmed.startsWith('console.log') || trimmed.startsWith('System.out.print'));
+
+    if (isErrorOrGuard && !hasErrorTest) {
+      coverageMap[lineNum] = 0;
+    } else if (isTopLevelScript) {
       coverageMap[lineNum] = 0;
     } else {
       const hits = Math.max(1, testCases.length);
