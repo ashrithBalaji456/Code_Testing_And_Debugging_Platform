@@ -33,22 +33,67 @@ import { ModernizeModal } from './components/ModernizeModal';
 import { ReportModal } from './components/ReportModal';
 
 export default function App() {
-  const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+  // 1. Language: restored from localStorage or default 'javascript'
+  const [selectedLanguage, setSelectedLanguage] = useState(() => {
+    return localStorage.getItem('devpulse_language') || 'javascript';
+  });
   const filteredSnippets = SNIPPETS.filter(s => s.language === selectedLanguage);
 
-  const [selectedSnippetId, setSelectedSnippetId] = useState(SNIPPETS[0].id);
+  // 2. Scenario snippet ID: restored from localStorage or first snippet of language
+  const [selectedSnippetId, setSelectedSnippetId] = useState(() => {
+    const saved = localStorage.getItem('devpulse_snippet_id');
+    if (saved && SNIPPETS.some(s => s.id === saved)) {
+      return saved;
+    }
+    const savedLang = localStorage.getItem('devpulse_language') || 'javascript';
+    const match = SNIPPETS.find(s => s.language === savedLang);
+    return match ? match.id : SNIPPETS[0].id;
+  });
   const currentSnippet = SNIPPETS.find(s => s.id === selectedSnippetId) || filteredSnippets[0] || SNIPPETS[0];
 
-  const [code, setCode] = useState(currentSnippet.code);
+  // 3. Editor code: restored from localStorage if user edited, otherwise snippet default
+  const [code, setCode] = useState(() => {
+    const saved = localStorage.getItem('devpulse_code');
+    if (saved !== null && saved.trim().length > 0) {
+      return saved;
+    }
+    return currentSnippet.code;
+  });
   const [fixedCode, setFixedCode] = useState(currentSnippet.fixedCode);
-  const [activeTab, setActiveTab] = useState('review'); // 'review' | 'debug' | 'test'
-  const [isDiffMode, setIsDiffMode] = useState(false);
-  const [showCoverage, setShowCoverage] = useState(true);
+
+  // 4. Studio Active Tab: restored from localStorage ('review' | 'debug' | 'test' | 'ai')
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('devpulse_active_tab');
+    if (saved && ['review', 'debug', 'test', 'ai'].includes(saved)) {
+      return saved;
+    }
+    return 'review';
+  });
+
+  const [isDiffMode, setIsDiffMode] = useState(() => {
+    return localStorage.getItem('devpulse_is_diff_mode') === 'true';
+  });
+
+  const [showCoverage, setShowCoverage] = useState(() => {
+    const saved = localStorage.getItem('devpulse_show_coverage');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  // 5. Test Cases: restored from localStorage if custom
+  const [testCases, setTestCases] = useState(() => {
+    const saved = localStorage.getItem('devpulse_test_cases');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return currentSnippet.testCases || [];
+  });
 
   // Analysis & Testing state
-  const [analysis, setAnalysis] = useState(() => analyzeCode(currentSnippet.code, currentSnippet.language));
+  const [analysis, setAnalysis] = useState(() => analyzeCode(code || currentSnippet.code, selectedLanguage || currentSnippet.language));
   const [executionResult, setExecutionResult] = useState(null);
-  const [testCases, setTestCases] = useState(currentSnippet.testCases);
   const [testResults, setTestResults] = useState(null);
   const [logs, setLogs] = useState([]);
   const [highlightedLine, setHighlightedLine] = useState(null);
@@ -64,6 +109,37 @@ export default function App() {
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
+
+  // Auto-persist state changes to localStorage so page refresh never loses user work
+  useEffect(() => {
+    localStorage.setItem('devpulse_code', code);
+  }, [code]);
+
+  useEffect(() => {
+    localStorage.setItem('devpulse_language', selectedLanguage);
+  }, [selectedLanguage]);
+
+  useEffect(() => {
+    localStorage.setItem('devpulse_snippet_id', selectedSnippetId);
+  }, [selectedSnippetId]);
+
+  useEffect(() => {
+    localStorage.setItem('devpulse_active_tab', activeTab);
+  }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('devpulse_is_diff_mode', String(isDiffMode));
+  }, [isDiffMode]);
+
+  useEffect(() => {
+    localStorage.setItem('devpulse_show_coverage', String(showCoverage));
+  }, [showCoverage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('devpulse_test_cases', JSON.stringify(testCases));
+    } catch (e) {}
+  }, [testCases]);
 
   // Sync theme with DOM root attribute
   useEffect(() => {
@@ -189,6 +265,21 @@ export default function App() {
     setLogs([
       { type: 'info', message: `Switched language to [${snip.language.toUpperCase()}] - Loaded scenario: "${snip.name}"`, time: new Date().toLocaleTimeString() },
       { type: 'warn', message: `Notice: Code contains intentional bugs & vulnerabilities for demonstration.`, time: new Date().toLocaleTimeString() }
+    ]);
+  };
+
+  // Reset editor code to current scenario default template
+  const handleResetToDefault = () => {
+    setCode(currentSnippet.code);
+    setFixedCode(currentSnippet.fixedCode);
+    setTestCases(currentSnippet.testCases);
+    setTestResults(null);
+    setExecutionResult(null);
+    const initialAnalysis = analyzeCode(currentSnippet.code, selectedLanguage);
+    setAnalysis(initialAnalysis);
+    setLogs(prev => [
+      ...prev,
+      { type: 'info', message: `Reset editor code back to "${currentSnippet.name}" default template.`, time: new Date().toLocaleTimeString() }
     ]);
   };
 
@@ -455,6 +546,19 @@ export default function App() {
               >
                 Coverage Heatmap {testResults?.coveragePercent ? `(${testResults.coveragePercent}%)` : ''}
               </button>
+
+              {code.trim() !== currentSnippet.code.trim() && (
+                <button 
+                  id="btn-reset-code"
+                  className="view-toggle-btn"
+                  onClick={handleResetToDefault}
+                  title="Revert all edits back to the original preset scenario template"
+                  style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <RotateCcw size={12} />
+                  <span>Reset Code</span>
+                </button>
+              )}
             </div>
           </div>
 
