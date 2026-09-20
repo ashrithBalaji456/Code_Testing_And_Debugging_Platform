@@ -157,13 +157,16 @@ Return ONLY a valid JSON array of objects with this exact structure:
   {
     "id": "ai-test-1",
     "name": "Concise description of the test case",
-    "input": "Function argument string (e.g. '0' or '5' or '(10, 20)' or '\"input\"')",
-    "expected": "Expected return value as string (e.g. '0' or '55' or 'Error' or 'true')",
+    "input": "Function argument or invocation string (e.g. '0' or '5' or '(10, 20)' or 'deposit(101, 1000)')",
+    "expected": "Expected return value or clean state (e.g. '6000.0' or '2500.0' or 'Error' or 'true')",
     "type": "Happy" | "Edge" | "Boundary" | "Error"
   }
 ]
 
-IMPORTANT: Output ONLY the raw JSON array. Do not include markdown formatting, explanations, or backticks.`;
+IMPORTANT FOR EXPECTED VALUES:
+- The "expected" field MUST specify the CORRECT, intended outcome of the software specification (e.g., depositing 1000 to an account with initial balance 5000 should expect '6000.0', NOT a buggy result).
+- Output ONLY the clean expected value (e.g. '6000.0', '2500.0', 'Error', 'true', etc.). Do NOT include commentary like "(due to bug)".
+- Output ONLY the raw JSON array. Do not include markdown formatting, explanations, or backticks.`;
 
   const raw = await callGeminiGenerate(apiKey, promptText);
   let rawText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();

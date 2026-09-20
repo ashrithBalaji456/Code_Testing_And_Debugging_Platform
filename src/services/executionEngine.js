@@ -87,31 +87,34 @@ export function executeCode(code, language = 'javascript') {
       };
     }
 
-    // 2. Check for Unchecked Null Dereference (NullPointerException)
-    const nullLine = code.split('\n').findIndex(l => /([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\)/.test(l) && (l.toLowerCase().includes('null') || code.includes(`Student nullStudent = manager.findStudent`)));
-    if (nullLine !== -1 && !code.includes('if (nullStudent != null)') && !code.includes('if (s != null)')) {
-      const lineNum = nullLine + 1;
-      return {
-        success: false,
-        logs: [
-          { type: 'info', message: `[JVM 21] Compiling ${className}.java with javac...`, time: new Date().toLocaleTimeString() },
-          { type: 'info', message: `[JVM 21] Running ${className}.main()...`, time: new Date().toLocaleTimeString() },
-          { type: 'error', message: `Exception in thread "main" java.lang.NullPointerException: Cannot invoke "Student.getName()" because "nullStudent" is null`, time: new Date().toLocaleTimeString() },
-          { type: 'error', message: `\tat ${className}.main(${className}.java:${lineNum})`, time: new Date().toLocaleTimeString() }
-        ],
-        duration,
-        error: {
-          name: 'NullPointerException',
-          message: `Cannot invoke method on null reference at line ${lineNum}`,
-          line: lineNum,
-          diagnosis: {
-            title: 'Unchecked Null Object Access (NullPointerException)',
-            cause: 'The variable "nullStudent" was initialized from findStudent(999) which returned null. Calling .getName() without a null check crashes the JVM.',
-            fix: 'Wrap invocation with `if (nullStudent != null) System.out.println(nullStudent.getName());`',
-            affectedArea: `Line ${lineNum}: System.out.println(nullStudent.getName());`
+    // 2. Check for Unchecked Null Dereference in StudentManager scenario
+    if (code.includes('StudentManager') || code.includes('Student nullStudent')) {
+      const nullLine = code.split('\n').findIndex(l => /nullStudent\.get[a-zA-Z0-9_]+\(\)/.test(l));
+      const hasNullGuard = code.includes('if (nullStudent != null)') || code.includes('nullStudent != null');
+      if (nullLine !== -1 && !hasNullGuard) {
+        const lineNum = nullLine + 1;
+        return {
+          success: false,
+          logs: [
+            { type: 'info', message: `[JVM 21] Compiling ${className}.java with javac...`, time: new Date().toLocaleTimeString() },
+            { type: 'info', message: `[JVM 21] Running ${className}.main()...`, time: new Date().toLocaleTimeString() },
+            { type: 'error', message: `Exception in thread "main" java.lang.NullPointerException: Cannot invoke "Student.getName()" because "nullStudent" is null`, time: new Date().toLocaleTimeString() },
+            { type: 'error', message: `\tat ${className}.main(${className}.java:${lineNum})`, time: new Date().toLocaleTimeString() }
+          ],
+          duration,
+          error: {
+            name: 'NullPointerException',
+            message: `Cannot invoke method on null reference at line ${lineNum}`,
+            line: lineNum,
+            diagnosis: {
+              title: 'Unchecked Null Object Access (NullPointerException)',
+              cause: 'The variable "nullStudent" was initialized from findStudent(999) which returned null. Calling .getName() without a null check crashes the JVM.',
+              fix: 'Wrap invocation with `if (nullStudent != null) System.out.println(nullStudent.getName());`',
+              affectedArea: `Line ${lineNum}: System.out.println(nullStudent.getName());`
+            }
           }
-        }
-      };
+        };
+      }
     }
 
     // 3. Check for ConcurrentModificationException
@@ -141,25 +144,27 @@ export function executeCode(code, language = 'javascript') {
       };
     }
 
-    // 4. Check for Cart/PriceCalculator preset null bug
-    if (code.includes('NullPointerException') || code.includes('cart.getItems()') || (code.includes('List<Item>') && !code.includes('null != cart') && !code.includes('Objects.requireNonNull'))) {
+    // 4. Check for unhandled calculateFinalPrice NPE
+    if (code.includes('calculateFinalPrice') && !code.includes('Objects.requireNonNull') && !code.includes('price == null')) {
       return {
         success: false,
         logs: [
-          { type: 'error', message: 'Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.util.List.iterator()" because "items" is null', time: new Date().toLocaleTimeString() },
-          { type: 'error', message: `\tat com.devpulse.shop.${className}.calculateFinalPrice(${className}.java:14)`, time: new Date().toLocaleTimeString() },
-          { type: 'error', message: `\tat com.devpulse.shop.Main.main(Main.java:6)`, time: new Date().toLocaleTimeString() }
+          { type: 'info', message: `[JVM 21] Compiling ${className}.java with javac...`, time: new Date().toLocaleTimeString() },
+          { type: 'info', message: `[JVM 21] Running ${className}.main()...`, time: new Date().toLocaleTimeString() },
+          { type: 'error', message: 'Exception in thread "main" java.lang.NullPointerException: Cannot invoke "java.lang.Double.doubleValue()" because "price" is null', time: new Date().toLocaleTimeString() },
+          { type: 'error', message: `\tat ${className}.calculateFinalPrice(${className}.java:9)`, time: new Date().toLocaleTimeString() },
+          { type: 'error', message: `\tat ${className}.main(${className}.java:15)`, time: new Date().toLocaleTimeString() }
         ],
         duration,
         error: {
           name: 'NullPointerException',
-          message: 'Cannot invoke "java.util.List.iterator()" because the cart or items collection is null.',
-          line: 14,
+          message: 'Cannot invoke "java.lang.Double.doubleValue()" because "price" is null',
+          line: 9,
           diagnosis: {
-            title: 'Unchecked Null Object Access (NPE)',
-            cause: 'The cart object or its items list was dereferenced without prior null guard verification.',
-            fix: 'Add `if (cart == null || cart.getItems() == null) return 0.0;` before iterating.',
-            affectedArea: 'Line 14: for (Item item : cart.getItems())'
+            title: 'Unchecked Null Auto-Unboxing (NullPointerException)',
+            cause: 'Double wrapper object was passed as null and automatically unboxed in arithmetic expression.',
+            fix: 'Add Objects.requireNonNull(price, "Price cannot be null"); or check for null before unboxing.',
+            affectedArea: 'Line 9: double discountAmount = price * (discountPercent / 100.0);'
           }
         }
       };
@@ -186,28 +191,28 @@ export function executeCode(code, language = 'javascript') {
         { type: 'log', message: '103 Priya 91', time: new Date().toLocaleTimeString() },
         { type: 'log', message: '104 John 65', time: new Date().toLocaleTimeString() },
         { type: 'log', message: 'Maximum marks: 95', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: 'Minimum marks: 60', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '95', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '90', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '70', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '60', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '80', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: 'Found at index 1', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: 'Pass percentage: 100.0%', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: 'Sorted students:', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '104 John 65', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '102 Rahul 88', time: new Date().toLocaleTimeString() },
-        { type: 'log', message: '103 Priya 91', time: new Date().toLocaleTimeString() }
+        { type: 'log', message: 'Minimum marks: 60', time: new Date().toLocaleTimeString() }
       );
     } else {
-      // General Java print extraction
-      const printRegex = /System\.out\.println\s*\(\s*([^;]+)\s*\);/g;
+      // General Java print and logger extraction
+      const logRegex = /(?:System\.out\.println|logger\.(?:info|debug|warn|error))\s*\(\s*(.*?)\s*\);/g;
       let pMatch;
       let count = 0;
-      while ((pMatch = printRegex.exec(code)) !== null && count < 15) {
-        const raw = pMatch[1].replace(/^["']|["']$/g, '');
-        javaLogs.push({ type: 'log', message: raw, time: new Date().toLocaleTimeString() });
+      while ((pMatch = logRegex.exec(code)) !== null && count < 25) {
+        let raw = pMatch[1];
+        const parts = raw.split(',').map(s => s.trim());
+        let msg = parts[0].replace(/^["']|["']$/g, '');
+        if (parts.length > 1 && msg.includes('{}')) {
+          for (let i = 1; i < parts.length; i++) {
+            msg = msg.replace('{}', parts[i].replace(/^["']|["']$/g, ''));
+          }
+        }
+        javaLogs.push({ type: raw.includes('error') ? 'error' : 'log', message: msg, time: new Date().toLocaleTimeString() });
         count++;
+      }
+
+      if (count === 0) {
+        javaLogs.push({ type: 'log', message: `[JVM 21] Program executed with exit code 0 (no unhandled exceptions).`, time: new Date().toLocaleTimeString() });
       }
     }
 
@@ -224,6 +229,7 @@ export function executeCode(code, language = 'javascript') {
       error: null
     };
   }
+
 
   // C++ Execution Simulation
   if (language === 'cpp') {
