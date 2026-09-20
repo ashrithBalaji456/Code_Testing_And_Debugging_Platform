@@ -72,26 +72,72 @@ export function runTests(code, testCases) {
         const inputLower = tc.input.toLowerCase();
 
         // 1. BankAccount / Bank scenarios
-        if (code.includes('Account') || code.includes('bank') || code.includes('deposit') || inputLower.includes('deposit')) {
-          if (inputLower.includes('deposit')) {
-            // Check if code has bug (subtraction) or fix (addition)
+        if (code.includes('Account') || code.includes('bank') || code.includes('deposit') || inputLower.includes('deposit') || inputLower.includes('withdraw')) {
+          // Dynamic account state map
+          const mockAccounts = {
+            101: { id: 101, name: 'Ashrith', balance: 5000.0 },
+            102: { id: 102, name: 'Rahul', balance: 3000.0 },
+            103: { id: 103, name: 'Priya', balance: 7000.0 }
+          };
+
+          // Parse arguments: deposit(101, 1000) or withdraw(103, 7000) or getBalance(999)
+          const callMatch = tc.input.match(/([a-zA-Z0-9_]+)\s*\(([^)]*)\)/);
+          const method = callMatch ? callMatch[1].toLowerCase() : (inputLower.includes('deposit') ? 'deposit' : inputLower.includes('withdraw') ? 'withdraw' : 'getbalance');
+          const args = callMatch ? callMatch[2].split(',').map(s => s.trim().replace(/^["']|["']$/g, '')) : [];
+          
+          const accId = args[0] ? parseInt(args[0], 10) : (inputLower.includes('101') ? 101 : inputLower.includes('102') ? 102 : 103);
+          const amount = args[1] ? parseFloat(args[1]) : (inputLower.includes('1000') ? 1000 : inputLower.includes('500') ? 500 : inputLower.includes('7000') ? 7000 : 0);
+
+          if (method === 'deposit') {
             const isBuggy = /balance\s*=\s*balance\s*-\s*amount/i.test(code) || /balance\s*-=\s*amount/i.test(code);
-            // Starting Account 101 balance = 5000.0, deposit 1000.0
-            actual = isBuggy ? 'Account 101 balance becomes 4000.0' : 'Account 101 balance becomes 6000.0';
-          } else if (inputLower.includes('withdraw')) {
-            // Account 102 balance = 3000.0, withdraw 500.0
-            actual = 'Account 102 balance becomes 2500.0';
-          } else if (inputLower.includes('getbalance') || inputLower.includes('findaccount')) {
-            if (tc.input.includes('999')) {
-              // Non-existent account
-              actual = code.includes('AccountNotFoundException') 
-                ? 'Error: AccountNotFoundException: Account 999 not found' 
-                : 'Throws NullPointerException';
+            if (accId in mockAccounts) {
+              if (amount <= 0) {
+                actual = 'Error: IllegalArgumentException: Deposit amount must be positive';
+              } else {
+                const newBal = isBuggy ? mockAccounts[accId].balance - amount : mockAccounts[accId].balance + amount;
+                actual = `Account ${accId} balance becomes ${newBal.toFixed(1)}`;
+              }
             } else {
-              actual = '5000.0';
+              actual = code.includes('AccountNotFoundException') 
+                ? `Error: AccountNotFoundException: Account ${accId} not found` 
+                : 'Throws NullPointerException';
             }
-          } else if (inputLower.includes('transfer')) {
-            actual = 'Transfer completed successfully. Balances updated.';
+          } else if (method === 'withdraw') {
+            if (accId in mockAccounts) {
+              const currentBal = mockAccounts[accId].balance;
+              if (amount <= 0) {
+                actual = 'Error: IllegalArgumentException: Withdrawal amount must be positive';
+              } else if (amount > currentBal) {
+                actual = 'Error: InsufficientFundsException: Insufficient balance';
+              } else {
+                const newBal = currentBal - amount;
+                actual = `Account ${accId} balance becomes ${newBal.toFixed(1)}`;
+              }
+            } else {
+              actual = code.includes('AccountNotFoundException') 
+                ? `Error: AccountNotFoundException: Account ${accId} not found` 
+                : 'Throws NullPointerException';
+            }
+          } else if (method === 'getbalance' || method === 'findaccount') {
+            if (accId in mockAccounts) {
+              actual = `${mockAccounts[accId].balance.toFixed(1)}`;
+            } else {
+              actual = code.includes('AccountNotFoundException') 
+                ? `Error: AccountNotFoundException: Account ${accId} not found` 
+                : 'Throws NullPointerException';
+            }
+          } else if (method === 'transfer') {
+            const toId = args[1] ? parseInt(args[1], 10) : 101;
+            const transferAmt = args[2] ? parseFloat(args[2]) : 1000;
+            if (accId in mockAccounts && toId in mockAccounts) {
+              if (transferAmt > mockAccounts[accId].balance) {
+                actual = 'Error: InsufficientFundsException: Transfer amount exceeds balance';
+              } else {
+                actual = 'Transfer completed successfully. Balances updated.';
+              }
+            } else {
+              actual = 'Error: AccountNotFoundException';
+            }
           } else {
             actual = tc.expected;
           }

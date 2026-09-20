@@ -466,9 +466,14 @@ export default function App() {
   const handleApplyFixedCode = () => {
     setCode(fixedCode);
     setIsDiffMode(false);
+    
+    // Automatically re-evaluate test suite against the freshly applied code
+    const results = runTests(fixedCode, testCases);
+    setTestResults(results);
+
     setLogs(prev => [
       ...prev,
-      { type: 'success', message: `Successfully applied refactored and hardened code into editor.`, time: new Date().toLocaleTimeString() }
+      { type: 'success', message: `Successfully applied refactored and hardened code into editor. Test Suite auto-executed: ${results.passedCount}/${results.totalCount} passed.`, time: new Date().toLocaleTimeString() }
     ]);
   };
 

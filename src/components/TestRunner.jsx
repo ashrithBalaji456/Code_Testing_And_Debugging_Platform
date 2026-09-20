@@ -122,13 +122,18 @@ export function TestRunner({
 
           <div className="test-coverage-meter">
             <div className="coverage-text">
-              <span>Pass Rate</span>
-              <span>{testCases.length > 0 ? coveragePercent : 0}%</span>
+              <span>Pass Rate ({passedCount}/{testCases.length})</span>
+              <span>{testCases.length > 0 && testResults ? Math.round((passedCount / testCases.length) * 100) : 0}%</span>
             </div>
             <div className="coverage-bar">
               <div 
                 className="coverage-fill" 
-                style={{ width: `${testCases.length > 0 ? coveragePercent : 0}%` }} 
+                style={{ 
+                  width: `${testCases.length > 0 && testResults ? Math.round((passedCount / testCases.length) * 100) : 0}%`,
+                  background: (testCases.length > 0 && passedCount === testCases.length) 
+                    ? 'var(--accent-emerald)' 
+                    : (passedCount > 0 ? 'var(--accent-amber)' : 'var(--accent-rose)')
+                }} 
               />
             </div>
           </div>
