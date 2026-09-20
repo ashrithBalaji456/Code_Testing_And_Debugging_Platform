@@ -17,6 +17,7 @@ import { ComplexityProfiler } from './ComplexityProfiler';
 export function ReviewHub({
   analysis,
   onApplyFix,
+  onApplyAllFixes,
   onLineClick
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -162,7 +163,26 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {findings.filter(f => f.suggestedFix).length > 0 && onApplyAllFixes && (
+            <button 
+              id="btn-apply-all-fixes"
+              className="btn btn-primary btn-sm"
+              onClick={onApplyAllFixes}
+              title={`Apply all ${findings.filter(f => f.suggestedFix).length} automated patches at once`}
+              style={{
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                borderColor: '#10b981',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                fontWeight: 600
+              }}
+            >
+              <Sparkles size={13} />
+              <span>Apply All Fixes ({findings.filter(f => f.suggestedFix).length})</span>
+            </button>
+          )}
+
           <button 
             id="btn-export-report"
             className="btn btn-secondary btn-sm"
@@ -215,18 +235,24 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
                   {finding.category}
                 </span>
 
-                <button 
-                  className="btn btn-secondary btn-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApplyFix(finding);
-                  }}
-                  title="Automatically patch this code line"
-                  style={{ fontSize: '11px', padding: '4px 8px' }}
-                >
-                  <Wrench size={12} color="var(--accent-primary-light)" />
-                  <span>Apply Fix</span>
-                </button>
+                {finding.suggestedFix ? (
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplyFix(finding);
+                    }}
+                    title="Automatically patch this code line"
+                    style={{ fontSize: '11px', padding: '4px 8px' }}
+                  >
+                    <Wrench size={12} color="var(--accent-primary-light)" />
+                    <span>Apply Fix</span>
+                  </button>
+                ) : (
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    Non-destructive advice
+                  </span>
+                )}
               </div>
             </div>
           ))

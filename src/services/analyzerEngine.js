@@ -482,9 +482,27 @@ export function analyzeCode(code, language = 'javascript') {
     // Java Specific Rule 7: Unchecked null dereference (e.g. nullStudent.getName())
     lines.forEach((line, idx) => {
       const lineNum = idx + 1;
+      // Skip if line already contains a null guard or Optional check
+      if (
+        line.includes('!= null') || 
+        line.includes('== null') || 
+        line.includes('null !=') || 
+        line.includes('null ==') || 
+        line.includes('Optional') || 
+        line.includes('Objects.requireNonNull') || 
+        line.includes('Objects.nonNull')
+      ) {
+        return;
+      }
+
+      const prevLine = idx > 0 ? lines[idx - 1] : '';
+      if (prevLine.includes('!= null') || prevLine.includes('== null')) {
+        return;
+      }
+
       if (/(?:System\.out\.println\s*\(\s*([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\)\s*\)|([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\))/.test(line)) {
         const varMatch = line.match(/([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\)/);
-        if (varMatch && (varMatch[1].toLowerCase().includes('null') || code.includes(`Student ${varMatch[1]} = manager.findStudent`))) {
+        if (varMatch && (varMatch[1].toLowerCase().includes('null') || code.includes(`Student ${varMatch[1]} = manager.findStudent(999)`))) {
           const varName = varMatch[1];
           const leadingSpaces = line.match(/^\s*/)[0];
           findings.push({
@@ -613,10 +631,96 @@ export function analyzeCode(code, language = 'javascript') {
     complexityExplanation = 'Logarithmic time scaling via divide-and-conquer binary partition.';
   }
 
-  // Compute final scores
-  const securityScore = Math.max(15, Math.min(100, 100 - securityDeduction));
-  const performanceScore = Math.max(20, Math.min(100, 100 - performanceDeduction));
-  const maintainabilityScore = Math.max(25, Math.min(100, 100 - maintainabilityDeduction));
+  // Exact rule penalty map
+  const PENALTY_MAP = {
+    'sec-sqli': { security: 35 },
+    'sec-secret': { security: 30 },
+    'sec-eval': { security: 40 },
+    'perf-recursion': { performance: 25 },
+    'perf-nested-loops': { performance: 20 },
+    'perf-leak': { performance: 20 },
+    'smell-loose-eq': { maintainability: 8 },
+    'smell-var': { maintainability: 5 },
+    'smell-console': { maintainability: 4 },
+    'qual-input-val': { maintainability: 12 },
+    'py-sqli': { security: 35 },
+    'py-mutable-default': { maintainability: 18 },
+    'py-bare-except': { maintainability: 12 },
+    'py-none-check': { maintainability: 5 },
+    'py-secret': { security: 30 },
+    'java-sysout': { maintainability: 2 },
+    'java-string-eq': { security: 20 },
+    'java-off-by-one': { maintainability: 25 },
+    'java-rev-bound': { maintainability: 25 },
+    'java-int-div': { maintainability: 15 },
+    'java-cme': { maintainability: 30 },
+    'java-null-deref': { security: 30 },
+    'java-topper-logic': { maintainability: 15 },
+    'java-comp-sub': { maintainability: 10 },
+    'cpp-raw-alloc': { security: 25, performance: 20 },
+    'cpp-oob': { security: 35 }
+  };
+
+  // Discard findings that are already resolved, where fix matches original code, or where line already has the fix applied
+  const activeFindings = findings.filter(f => {
+    if (!f.suggestedFix || !f.originalCode) return true;
+    const cleanOrig = f.originalCode.replace(/\s+/g, ' ').trim();
+    const cleanFix = f.suggestedFix.replace(/\s+/g, ' ').trim();
+
+    // 1. If original and fix are identical, it's already resolved / no-op
+    if (cleanOrig === cleanFix) return false;
+
+    // 2. If the current source line matches suggestedFix or contains the fix
+    if (f.line && lines[f.line - 1]) {
+      const currentLine = lines[f.line - 1].replace(/\s+/g, ' ').trim();
+      if (currentLine === cleanFix) return false;
+      if (cleanFix.length > 5 && currentLine.includes(cleanFix) && !currentLine.includes(cleanOrig)) {
+        return false;
+      }
+    }
+
+    // 3. Search anywhere in the code if this exact fix line is already present and original line is absent
+    const hasFixInCode = lines.some(l => l.replace(/\s+/g, ' ').trim() === cleanFix);
+    const hasOrigInCode = lines.some(l => l.replace(/\s+/g, ' ').trim() === cleanOrig);
+    if (hasFixInCode && !hasOrigInCode) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Calculate deductions dynamically from ACTIVE findings so scores immediately update as fixes are applied
+  let activeSecurityDeduction = 0;
+  let activePerformanceDeduction = 0;
+  let activeMaintainabilityDeduction = 0;
+
+  activeFindings.forEach(f => {
+    let penalties = f.penalties;
+    if (!penalties) {
+      for (const [prefix, pMap] of Object.entries(PENALTY_MAP)) {
+        if (f.id.startsWith(prefix)) {
+          penalties = pMap;
+          break;
+        }
+      }
+    }
+
+    if (penalties) {
+      activeSecurityDeduction += penalties.security || 0;
+      activePerformanceDeduction += penalties.performance || 0;
+      activeMaintainabilityDeduction += penalties.maintainability || 0;
+    } else {
+      const fallback = f.severity === 'critical' ? 25 : f.severity === 'warning' ? 15 : 5;
+      if (f.category === 'Security') activeSecurityDeduction += fallback;
+      else if (f.category === 'Performance') activePerformanceDeduction += fallback;
+      else activeMaintainabilityDeduction += fallback;
+    }
+  });
+
+  // Compute final scores strictly from active findings
+  const securityScore = Math.max(15, Math.min(100, 100 - activeSecurityDeduction));
+  const performanceScore = Math.max(20, Math.min(100, 100 - activePerformanceDeduction));
+  const maintainabilityScore = Math.max(25, Math.min(100, 100 - activeMaintainabilityDeduction));
 
   const weightedScore = Math.round(
     securityScore * 0.4 + performanceScore * 0.35 + maintainabilityScore * 0.25
@@ -633,10 +737,10 @@ export function analyzeCode(code, language = 'javascript') {
 
   const stats = {
     lines: lines.length,
-    critical: findings.filter(f => f.severity === 'critical').length,
-    warning: findings.filter(f => f.severity === 'warning').length,
-    info: findings.filter(f => f.severity === 'info').length,
-    clean: findings.length === 0 ? 1 : 0
+    critical: activeFindings.filter(f => f.severity === 'critical').length,
+    warning: activeFindings.filter(f => f.severity === 'warning').length,
+    info: activeFindings.filter(f => f.severity === 'info').length,
+    clean: activeFindings.length === 0 ? 1 : 0
   };
 
   return {
@@ -645,7 +749,7 @@ export function analyzeCode(code, language = 'javascript') {
     securityScore,
     performanceScore,
     maintainabilityScore,
-    findings,
+    findings: activeFindings,
     stats,
     complexity: {
       time: timeComplexity,

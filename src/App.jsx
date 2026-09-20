@@ -285,16 +285,75 @@ export default function App() {
   const handleApplyFix = (finding) => {
     if (!finding.suggestedFix) return;
     const lines = code.split('\n');
-    if (lines[finding.line - 1] !== undefined) {
-      lines[finding.line - 1] = finding.suggestedFix;
+    let targetIdx = finding.line - 1;
+
+    // Verify if line at targetIdx matches originalCode
+    if (
+      targetIdx < 0 ||
+      targetIdx >= lines.length ||
+      (finding.originalCode && lines[targetIdx].trim() !== finding.originalCode.trim())
+    ) {
+      // Find the line that matches originalCode closest to targetIdx
+      const foundIdx = lines.findIndex(l => l.trim() === finding.originalCode?.trim());
+      if (foundIdx !== -1) {
+        targetIdx = foundIdx;
+      }
+    }
+
+    if (lines[targetIdx] !== undefined) {
+      lines[targetIdx] = finding.suggestedFix;
       const updatedCode = lines.join('\n');
       setCode(updatedCode);
 
+      // Immediately run analyzer and update analysis & fixedCode synchronously
+      const nextAnalysis = analyzeCode(updatedCode, selectedLanguage);
+      setAnalysis(nextAnalysis);
+      const repaired = generateRepairedCode(updatedCode, nextAnalysis.findings);
+      setFixedCode(repaired);
+
       setLogs(prev => [
         ...prev,
-        { type: 'success', message: `Applied automated patch to Line ${finding.line}: "${finding.title}"`, time: new Date().toLocaleTimeString() }
+        { type: 'success', message: `Applied automated patch to Line ${targetIdx + 1}: "${finding.title}"`, time: new Date().toLocaleTimeString() }
       ]);
     }
+  };
+
+  // Apply all available automated fixes at once
+  const handleApplyAllFixes = () => {
+    if (!analysis?.findings) return;
+    const fixableFindings = analysis.findings.filter(f => f.suggestedFix);
+    if (fixableFindings.length === 0) return;
+
+    let updatedCode = code;
+    for (const f of fixableFindings) {
+      const lines = updatedCode.split('\n');
+      let targetIdx = f.line - 1;
+      if (
+        targetIdx < 0 ||
+        targetIdx >= lines.length ||
+        (f.originalCode && lines[targetIdx].trim() !== f.originalCode.trim())
+      ) {
+        const foundIdx = lines.findIndex(l => l.trim() === f.originalCode?.trim());
+        if (foundIdx !== -1) {
+          targetIdx = foundIdx;
+        }
+      }
+      if (lines[targetIdx] !== undefined) {
+        lines[targetIdx] = f.suggestedFix;
+        updatedCode = lines.join('\n');
+      }
+    }
+
+    setCode(updatedCode);
+    const nextAnalysis = analyzeCode(updatedCode, selectedLanguage);
+    setAnalysis(nextAnalysis);
+    const repaired = generateRepairedCode(updatedCode, nextAnalysis.findings);
+    setFixedCode(repaired);
+
+    setLogs(prev => [
+      ...prev,
+      { type: 'success', message: `Successfully applied all ${fixableFindings.length} automated patches.`, time: new Date().toLocaleTimeString() }
+    ]);
   };
 
   // Apply full hardened/fixed code
@@ -488,6 +547,7 @@ export default function App() {
             <ReviewHub
               analysis={analysis}
               onApplyFix={handleApplyFix}
+              onApplyAllFixes={handleApplyAllFixes}
               onLineClick={(line) => setHighlightedLine(line)}
             />
           )}
