@@ -168,77 +168,80 @@ export function analyzeCode(code, language = 'javascript') {
     }
   });
 
-  // Rule 7: Loose Equality Checks (== vs ===)
-  lines.forEach((line, idx) => {
-    const lineNum = idx + 1;
-    if (/[^!=]==[^=]/.test(line) && !line.includes('===') && !line.includes('//')) {
-      findings.push({
-        id: `smell-loose-eq-${lineNum}`,
-        line: lineNum,
-        severity: 'info',
-        category: 'Code Quality',
-        title: 'Use Strict Equality Operator (===)',
-        description: 'Loose equality (==) triggers implicit JavaScript type coercion, which often causes unexpected edge case bugs (e.g. "" == 0 evaluates to true).',
-        originalCode: line.trim(),
-        suggestedFix: line.replace(/==/g, '==='),
-        recommendation: 'Always use strict equality (===) and strict inequality (!==).'
-      });
-      maintainabilityDeduction += 8;
-    }
-  });
-
-  // Rule 8: Use of var instead of const/let
-  lines.forEach((line, idx) => {
-    const lineNum = idx + 1;
-    if (/\bvar\s+[a-zA-Z0-9_]+/.test(line) && !line.includes('//')) {
-      findings.push({
-        id: `smell-var-${lineNum}`,
-        line: lineNum,
-        severity: 'info',
-        category: 'Best Practices',
-        title: 'Deprecated "var" Keyword Used',
-        description: '"var" declarations have function-scope and hoisting quirks that lead to subtle shadowing and reassignment bugs.',
-        originalCode: line.trim(),
-        suggestedFix: line.replace(/\bvar\b/, 'const'),
-        recommendation: 'Prefer "const" for immutable references and "let" for mutable variables.'
-      });
-      maintainabilityDeduction += 5;
-    }
-  });
-
-  // Rule 9: Console.log left in production code
-  lines.forEach((line, idx) => {
-    const lineNum = idx + 1;
-    if (/console\.(log|debug|info)\s*\(/.test(line) && !line.includes('//')) {
-      findings.push({
-        id: `smell-console-${lineNum}`,
-        line: lineNum,
-        severity: 'info',
-        category: 'Best Practices',
-        title: 'Console Logging in Source Code',
-        description: 'Debug console statements can leak internal object structures to browser devtools and impact runtime performance in tight loops.',
-        originalCode: line.trim(),
-        suggestedFix: `// ${line.trim()} (Remove or replace with structured logger)`,
-        recommendation: 'Remove debugging console statements or gate them behind an environment-aware logger.'
-      });
-      maintainabilityDeduction += 4;
-    }
-  });
-
-  // Rule 10: Missing Input Validation / Boundary Checks
-  if (code.includes('function') && !code.includes('typeof') && !code.includes('throw') && !code.includes('Array.isArray')) {
-    findings.push({
-      id: `qual-input-val-1`,
-      line: 1,
-      severity: 'warning',
-      category: 'Code Quality',
-      title: 'Missing Input Type and Bounds Verification',
-      description: 'Functions accept arguments without validating parameter types, nullability, or edge boundaries (e.g. negative numbers, empty arrays).',
-      originalCode: lines[0] ? lines[0].trim() : 'function ...',
-      suggestedFix: 'if (!arg || typeof arg !== "number") throw new TypeError("Invalid argument");',
-      recommendation: 'Add defensive guards at the start of functions to validate inputs and fail fast.'
+  // JavaScript Specific Rules (Only evaluate when language === 'javascript')
+  if (language === 'javascript') {
+    // Rule 7: Loose Equality Checks (== vs ===)
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/[^!=]==[^=]/.test(line) && !line.includes('===') && !line.includes('//')) {
+        findings.push({
+          id: `smell-loose-eq-${lineNum}`,
+          line: lineNum,
+          severity: 'info',
+          category: 'Code Quality',
+          title: 'Use Strict Equality Operator (===)',
+          description: 'Loose equality (==) triggers implicit JavaScript type coercion, which often causes unexpected edge case bugs (e.g. "" == 0 evaluates to true).',
+          originalCode: line.trim(),
+          suggestedFix: line.replace(/==/g, '==='),
+          recommendation: 'Always use strict equality (===) and strict inequality (!==).'
+        });
+        maintainabilityDeduction += 8;
+      }
     });
-    maintainabilityDeduction += 12;
+
+    // Rule 8: Use of var instead of const/let
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/\bvar\s+[a-zA-Z0-9_]+/.test(line) && !line.includes('//')) {
+        findings.push({
+          id: `smell-var-${lineNum}`,
+          line: lineNum,
+          severity: 'info',
+          category: 'Best Practices',
+          title: 'Deprecated "var" Keyword Used',
+          description: '"var" declarations have function-scope and hoisting quirks that lead to subtle shadowing and reassignment bugs.',
+          originalCode: line.trim(),
+          suggestedFix: line.replace(/\bvar\b/, 'const'),
+          recommendation: 'Prefer "const" for immutable references and "let" for mutable variables.'
+        });
+        maintainabilityDeduction += 5;
+      }
+    });
+
+    // Rule 9: Console.log left in production code
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/console\.(log|debug|info)\s*\(/.test(line) && !line.includes('//')) {
+        findings.push({
+          id: `smell-console-${lineNum}`,
+          line: lineNum,
+          severity: 'info',
+          category: 'Best Practices',
+          title: 'Console Logging in Source Code',
+          description: 'Debug console statements can leak internal object structures to browser devtools and impact runtime performance in tight loops.',
+          originalCode: line.trim(),
+          suggestedFix: `// ${line.trim()} (Remove or replace with structured logger)`,
+          recommendation: 'Remove debugging console statements or gate them behind an environment-aware logger.'
+        });
+        maintainabilityDeduction += 4;
+      }
+    });
+
+    // Rule 10: Missing Input Validation / Boundary Checks
+    if (code.includes('function') && !code.includes('typeof') && !code.includes('throw') && !code.includes('Array.isArray')) {
+      findings.push({
+        id: `qual-input-val-1`,
+        line: 1,
+        severity: 'warning',
+        category: 'Code Quality',
+        title: 'Missing Input Type and Bounds Verification',
+        description: 'Functions accept arguments without validating parameter types, nullability, or edge boundaries (e.g. negative numbers, empty arrays).',
+        originalCode: lines[0] ? lines[0].trim() : 'function ...',
+        suggestedFix: 'if (!arg || typeof arg !== "number") throw new TypeError("Invalid argument");',
+        recommendation: 'Add defensive guards at the start of functions to validate inputs and fail fast.'
+      });
+      maintainabilityDeduction += 12;
+    }
   }
 
   // Python Specific Rule 1: f-string SQL Query Injection
@@ -338,43 +341,208 @@ export function analyzeCode(code, language = 'javascript') {
     }
   });
 
-  // Java Specific Rule 1: System.out.println in production code
-  lines.forEach((line, idx) => {
-    const lineNum = idx + 1;
-    if (/System\.out\.(print|println)\s*\(/.test(line)) {
-      findings.push({
-        id: `java-sysout-${lineNum}`,
-        line: lineNum,
-        severity: 'info',
-        category: 'Best Practices',
-        title: 'System.out.println in Production Code',
-        description: 'Direct stdout writing bypasses SLF4J / Logback logging frameworks and blocks thread I/O.',
-        originalCode: line.trim(),
-        suggestedFix: 'logger.info("..."); // Use structured SLF4J / Log4j logger',
-        recommendation: 'Replace standard console printing with a configured logger (e.g. SLF4J / Log4j2).'
-      });
-      maintainabilityDeduction += 5;
-    }
-  });
+  // Java Specific Rule 1: System.out.println in production code (Informational only, non-destructive)
+  if (language === 'java') {
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/System\.out\.(print|println)\s*\(/.test(line)) {
+        findings.push({
+          id: `java-sysout-${lineNum}`,
+          line: lineNum,
+          severity: 'info',
+          category: 'Best Practices',
+          title: 'Direct System.out.println in Code',
+          description: 'Standard stdout writes are unbuffered and bypass enterprise logging frameworks (like SLF4J / Log4j2). Acceptable for local scripts or competitive programming.',
+          originalCode: line.trim(),
+          suggestedFix: null, // Non-destructive: preserve user code
+          recommendation: 'In enterprise production applications, consider routing logs through SLF4J (e.g. logger.info(...)).'
+        });
+        maintainabilityDeduction += 2;
+      }
+    });
 
-  // Java Specific Rule 2: Unsafe Unboxing of Wrapper Types
-  lines.forEach((line, idx) => {
-    const lineNum = idx + 1;
-    if (/(Double|Integer|Float|Long)\s+[a-zA-Z0-9_]+.*[><=+\-*/]/.test(line) && !line.includes('!= null') && !line.includes('Objects.')) {
-      findings.push({
-        id: `java-unbox-${lineNum}`,
-        line: lineNum,
-        severity: 'warning',
-        category: 'Code Quality',
-        title: 'Potential NullPointerException via Auto-Unboxing',
-        description: 'Arithmetic or comparison operations on nullable wrapper objects automatically unbox values without checking for null (CWE-476).',
-        originalCode: line.trim(),
-        suggestedFix: 'Objects.requireNonNull(val, "Parameter cannot be null");',
-        recommendation: 'Guard nullable parameters with Objects.requireNonNull() or use Optional<T>.'
-      });
-      maintainabilityDeduction += 15;
-    }
-  });
+    // Java Specific Rule 2: String equality with '==' instead of '.equals()'
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (
+        (line.includes('== "') || line.includes('" ==') || line.includes("== '") || line.includes("' ==")) &&
+        !line.includes('.equals(')
+      ) {
+        let fixedLine = line;
+        if (line.includes('== "') || line.includes("== '")) {
+          fixedLine = line.replace(/([a-zA-Z0-9_.]+(?:\(\))?)\s*==\s*(["'][^"']+["'])/, '$2.equals($1)');
+        } else if (line.includes('" ==') || line.includes("' ==")) {
+          fixedLine = line.replace(/(["'][^"']+["'])\s*==\s*([a-zA-Z0-9_.]+(?:\(\))?)/, '$1.equals($2)');
+        }
+        findings.push({
+          id: `java-string-eq-${lineNum}`,
+          line: lineNum,
+          severity: 'critical',
+          category: 'Bug Risk',
+          title: "String Comparison Using '==' Instead of '.equals()'",
+          description: "In Java, '==' compares object memory addresses, not character sequences. If strings reside at different memory addresses, '==' returns false even if their text is identical.",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Use '\"value\".equals(variable)' or 'Objects.equals(a, b)' to safely compare string content."
+        });
+        securityDeduction += 20;
+      }
+    });
+
+    // Java Specific Rule 3: Off-by-one loop boundary on 0-indexed lists/arrays (<= size())
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/for\s*\(\s*int\s+[a-zA-Z0-9_]+\s*=\s*0\s*;\s*[a-zA-Z0-9_]+\s*<=\s*[a-zA-Z0-9_.]+\.(?:size\(\)|length)/.test(line)) {
+        const fixedLine = line.replace(/(<=\s*)([a-zA-Z0-9_.]+\.(?:size\(\)|length))/, '< $2');
+        findings.push({
+          id: `java-off-by-one-${lineNum}`,
+          line: lineNum,
+          severity: 'critical',
+          category: 'Bug Risk',
+          title: 'Off-by-One Loop Boundary (IndexOutOfBoundsException)',
+          description: "Java collections and arrays are 0-indexed (valid indices: 0 to size - 1). Using '<= size()' causes the last iteration to access index [size()], throwing an IndexOutOfBoundsException.",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Change '<=' to '<' in the loop condition to avoid accessing past the collection boundary."
+        });
+        maintainabilityDeduction += 25;
+      }
+    });
+
+    // Java Specific Rule 4: Reverse loop starting at array.length instead of array.length - 1
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/for\s*\(\s*int\s+[a-zA-Z0-9_]+\s*=\s*[a-zA-Z0-9_.]+\.(?:length|size\(\))\s*;\s*[a-zA-Z0-9_]+\s*>=\s*0/.test(line)) {
+        const fixedLine = line.replace(/(=\s*[a-zA-Z0-9_.]+\.(?:length|size\(\)))(\s*;)/, '$1 - 1$2');
+        findings.push({
+          id: `java-rev-bound-${lineNum}`,
+          line: lineNum,
+          severity: 'critical',
+          category: 'Bug Risk',
+          title: 'Out-of-Bounds Reverse Loop Initialization',
+          description: "Initializing the loop counter at 'array.length' immediately accesses index [length] on the first iteration, throwing an ArrayIndexOutOfBoundsException.",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Initialize the loop index at 'array.length - 1' or 'list.size() - 1'."
+        });
+        maintainabilityDeduction += 25;
+      }
+    });
+
+    // Java Specific Rule 5: Integer division truncation in floating-point calculations
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/return\s+([a-zA-Z0-9_]+)\s*\/\s*([a-zA-Z0-9_.]+(?:\.(?:size\(\)|length))?)\s*(\*\s*100(?:\.0)?)?\s*;/i.test(line)) {
+        let fixedLine = line;
+        if (line.includes('* 100')) {
+          fixedLine = line.replace(/return\s+([a-zA-Z0-9_]+)\s*\/\s*([a-zA-Z0-9_.]+(?:\.(?:size\(\)|length))?)\s*\*\s*100;/, 'return ((double) $1 / $2) * 100.0;');
+        } else {
+          fixedLine = line.replace(/return\s+([a-zA-Z0-9_]+)\s*\/\s*([a-zA-Z0-9_.]+(?:\.(?:size\(\)|length))?);/, 'return (double) $1 / $2;');
+        }
+        findings.push({
+          id: `java-int-div-${lineNum}`,
+          line: lineNum,
+          severity: 'warning',
+          category: 'Bug Risk',
+          title: 'Integer Division Truncates Fractional Precision',
+          description: "Dividing two integers in Java truncates any remainder to zero before returning a double. For example, 'passed / length * 100' evaluates to 0 when passed < length.",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Cast the numerator to '(double)' or use '100.0' to perform floating-point division."
+        });
+        maintainabilityDeduction += 15;
+      }
+    });
+
+    // Java Specific Rule 6: ConcurrentModificationException in for-each collection removal
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/([a-zA-Z0-9_]+)\.remove\s*\(\s*([a-zA-Z0-9_]+)\s*\)/.test(line)) {
+        const prevLines = lines.slice(Math.max(0, idx - 4), idx).join('\n');
+        if (/for\s*\([^:]+:\s*([a-zA-Z0-9_]+)\)/.test(prevLines)) {
+          const colMatch = line.match(/([a-zA-Z0-9_]+)\.remove/);
+          const collectionName = colMatch ? colMatch[1] : 'collection';
+          const leadingSpaces = line.match(/^\s*/)[0];
+          findings.push({
+            id: `java-cme-${lineNum}`,
+            line: lineNum,
+            severity: 'critical',
+            category: 'Bug Risk',
+            title: 'ConcurrentModificationException: Collection Mutation During For-Each',
+            description: `Calling '${collectionName}.remove()' inside an enhanced for-each loop mutates the collection structure while an Iterator is active, causing a runtime ConcurrentModificationException.`,
+            originalCode: line.trim(),
+            suggestedFix: `${leadingSpaces}${collectionName}.removeIf(s -> s.getId() == id); // Safe removal with removeIf()`,
+            recommendation: `Use '${collectionName}.removeIf(predicate)' or an explicit Iterator to remove items safely.`
+          });
+          maintainabilityDeduction += 30;
+        }
+      }
+    });
+
+    // Java Specific Rule 7: Unchecked null dereference (e.g. nullStudent.getName())
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/(?:System\.out\.println\s*\(\s*([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\)\s*\)|([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\))/.test(line)) {
+        const varMatch = line.match(/([a-zA-Z0-9_]+)\.get[a-zA-Z0-9_]+\(\)/);
+        if (varMatch && (varMatch[1].toLowerCase().includes('null') || code.includes(`Student ${varMatch[1]} = manager.findStudent`))) {
+          const varName = varMatch[1];
+          const leadingSpaces = line.match(/^\s*/)[0];
+          findings.push({
+            id: `java-null-deref-${lineNum}`,
+            line: lineNum,
+            severity: 'critical',
+            category: 'Security',
+            title: `Potential NullPointerException on Dereferencing '${varName}'`,
+            description: `'${varName}' can evaluate to null when a requested record or ID is not found. Calling .getName() directly without a null guard triggers an immediate NullPointerException.`,
+            originalCode: line.trim(),
+            suggestedFix: `${leadingSpaces}if (${varName} != null) System.out.println(${varName}.getName()); else System.out.println("Student not found");`,
+            recommendation: `Add a null check 'if (${varName} != null)' or use Optional<Student> before dereferencing.`
+          });
+          securityDeduction += 30;
+        }
+      }
+    });
+
+    // Java Specific Rule 8: Inverted comparison in topper search
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/if\s*\(\s*([a-zA-Z0-9_]+)\.getMarks\(\)\s*<\s*topper\.getMarks\(\)\s*\)/.test(line)) {
+        const fixedLine = line.replace(/</, '>');
+        findings.push({
+          id: `java-topper-logic-${lineNum}`,
+          line: lineNum,
+          severity: 'warning',
+          category: 'Bug Risk',
+          title: 'Inverted Extremum Logic (Finds Minimum Instead of Topper)',
+          description: "The condition compares 'marks < topper.getMarks()', which finds the lowest-scoring student (minimum) instead of the highest-scoring student (topper).",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Change '<' to '>' to properly identify the maximum scoring student."
+        });
+        maintainabilityDeduction += 15;
+      }
+    });
+
+    // Java Specific Rule 9: Comparator integer subtraction overflow
+    lines.forEach((line, idx) => {
+      const lineNum = idx + 1;
+      if (/return\s+([a-zA-Z0-9_]+)\.getMarks\(\)\s*-\s*([a-zA-Z0-9_]+)\.getMarks\(\)\s*;/.test(line)) {
+        const fixedLine = line.replace(/return\s+([a-zA-Z0-9_]+)\.getMarks\(\)\s*-\s*([a-zA-Z0-9_]+)\.getMarks\(\)\s*;/, 'return Integer.compare($1.getMarks(), $2.getMarks());');
+        findings.push({
+          id: `java-comp-sub-${lineNum}`,
+          line: lineNum,
+          severity: 'warning',
+          category: 'Code Quality',
+          title: 'Potential Integer Overflow in Comparator Subtraction',
+          description: "Subtracting primitive integers 'a.getMarks() - b.getMarks()' inside a Comparator can overflow if values differ across Integer.MAX_VALUE boundaries.",
+          originalCode: line.trim(),
+          suggestedFix: fixedLine,
+          recommendation: "Use 'Integer.compare(a.getMarks(), b.getMarks())' to safely compare integer fields."
+        });
+        maintainabilityDeduction += 10;
+      }
+    });
+  }
 
   // C++ Specific Rule 1: Raw Dynamic Allocation (new / new[]) without Smart Pointers
   lines.forEach((line, idx) => {

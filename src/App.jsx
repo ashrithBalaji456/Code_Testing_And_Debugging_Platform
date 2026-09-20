@@ -96,12 +96,52 @@ export default function App() {
   }, []);
 
   const getFileName = () => {
-    switch (selectedLanguage) {
-      case 'python': return 'solution.py';
-      case 'java': return 'Solution.java';
-      case 'cpp': return 'solution.cpp';
-      default: return 'solution.js';
+    if (selectedLanguage === 'java') {
+      const match = code.match(/public\s+class\s+([a-zA-Z0-9_]+)/) || code.match(/class\s+([a-zA-Z0-9_]+)/);
+      if (match) return `${match[1]}.java`;
+      return 'Solution.java';
     }
+    if (selectedLanguage === 'cpp') {
+      const match = code.match(/class\s+([a-zA-Z0-9_]+)/) || code.match(/struct\s+([a-zA-Z0-9_]+)/);
+      if (match) return `${match[1]}.cpp`;
+      return 'solution.cpp';
+    }
+    if (selectedLanguage === 'python') {
+      const match = code.match(/class\s+([a-zA-Z0-9_]+)/) || code.match(/def\s+([a-zA-Z0-9_]+)/);
+      if (match) return `${match[1]}.py`;
+      return 'solution.py';
+    }
+    if (selectedLanguage === 'javascript') {
+      const match = code.match(/class\s+([a-zA-Z0-9_]+)/) || code.match(/function\s+([a-zA-Z0-9_]+)/);
+      if (match) return `${match[1]}.js`;
+      return 'solution.js';
+    }
+    return 'solution.js';
+  };
+
+  // Helper: In-place code repair engine for any custom or pasted user code
+  const generateRepairedCode = (sourceCode, findings) => {
+    // If user has not changed preset snippet, preserve dedicated preset fixedCode
+    const preset = SNIPPETS.find(s => s.id === selectedSnippetId);
+    if (preset && sourceCode.trim() === preset.code.trim() && preset.fixedCode) {
+      return preset.fixedCode;
+    }
+
+    if (!findings || findings.length === 0) {
+      return sourceCode;
+    }
+
+    let lines = sourceCode.split('\n');
+    // Sort descending by line number so lines don't shift when patched
+    const sorted = [...findings]
+      .filter(f => f.suggestedFix && f.line > 0 && f.line <= lines.length)
+      .sort((a, b) => b.line - a.line);
+
+    for (const f of sorted) {
+      lines[f.line - 1] = f.suggestedFix;
+    }
+
+    return lines.join('\n');
   };
 
   // Handle imported code
@@ -152,11 +192,29 @@ export default function App() {
     ]);
   };
 
-  // Re-run static analysis whenever code changes
+  // Re-run static analysis & compute in-place repaired code whenever code changes
   useEffect(() => {
+    // Auto-detect language if code has obvious language signatures
+    if (selectedLanguage !== 'java' && (/import\s+java\.|public\s+class\s+|System\.out\.print/i.test(code))) {
+      setSelectedLanguage('java');
+      return;
+    }
+    if (selectedLanguage !== 'cpp' && (/#include\s+<iostream>|std::vector|std::cout/i.test(code))) {
+      setSelectedLanguage('cpp');
+      return;
+    }
+    if (selectedLanguage !== 'python' && (/def\s+[a-zA-Z0-9_]+\s*\(.*:\s*$/m.test(code) && !/function\s|const\s|let\s/i.test(code))) {
+      setSelectedLanguage('python');
+      return;
+    }
+
     const res = analyzeCode(code, selectedLanguage);
     setAnalysis(res);
-  }, [code, selectedLanguage]);
+
+    // Ensure fixedCode always reflects the user's repaired code
+    const repaired = generateRepairedCode(code, res.findings);
+    setFixedCode(repaired);
+  }, [code, selectedLanguage, selectedSnippetId]);
 
   // Execute Sandbox Run (with Pyodide WebAssembly for Python)
   const handleRunCode = async () => {
