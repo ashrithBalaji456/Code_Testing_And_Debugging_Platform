@@ -23,7 +23,8 @@ export function TestRunner({
   onGenerateTests,
   onAddTestCase,
   onDeleteTestCase,
-  isRunningTests
+  isRunningTests,
+  isGeneratingAiTests = false
 }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTestName, setNewTestName] = useState('');
@@ -147,12 +148,20 @@ export function TestRunner({
 
           <button 
             id="btn-generate-tests"
-            className="btn btn-secondary btn-sm"
+            className="btn btn-primary btn-sm"
             onClick={onGenerateTests}
-            title="Auto-generate unit test assertions for this code"
+            disabled={isGeneratingAiTests || isRunningTests}
+            title="Generate custom unit test cases using Gemini AI specifically for this code"
+            style={{
+              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+              borderColor: '#a855f7',
+              color: '#ffffff',
+              boxShadow: '0 2px 8px rgba(168, 85, 247, 0.35)',
+              fontWeight: 600
+            }}
           >
-            <Sparkles size={13} color="var(--accent-purple)" />
-            <span>Synthesize Tests</span>
+            <Sparkles size={13} className={isGeneratingAiTests ? 'spin' : ''} />
+            <span>{isGeneratingAiTests ? 'Generating with Gemini...' : 'AI Generate Tests'}</span>
           </button>
         </div>
       </div>

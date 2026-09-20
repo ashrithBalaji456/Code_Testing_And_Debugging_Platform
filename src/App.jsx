@@ -15,6 +15,7 @@ import { SNIPPETS } from './data/snippets';
 import { analyzeCode } from './services/analyzerEngine';
 import { executeCode, executeCodeAsync } from './services/executionEngine';
 import { runTests, generateTestsFromCode, calculateLineCoverage } from './services/testEngine';
+import { generateAiTestCases, rewriteCodeWithAi } from './services/geminiService';
 
 import { Navbar } from './components/Navbar';
 import { Editor } from './components/Editor';
@@ -120,6 +121,9 @@ export default function App() {
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
+  const [isGeneratingAiTests, setIsGeneratingAiTests] = useState(false);
+  const [isAiRewriting, setIsAiRewriting] = useState(false);
+  const [apiKeyPromptMessage, setApiKeyPromptMessage] = useState('');
 
   // Auto-persist state changes to localStorage so page refresh never loses user work
   useEffect(() => {
@@ -468,15 +472,90 @@ export default function App() {
     ]);
   };
 
-  // Synthesize new unit tests
-  const handleGenerateTests = () => {
-    const generated = generateTestsFromCode(code);
-    setTestCases(generated);
-    setTestResults(null);
+  // AI-powered or heuristic unit test generation
+  const handleGenerateTests = async () => {
+    if (!geminiApiKey) {
+      setApiKeyPromptMessage('To generate custom unit test cases specifically crafted for your code, please enter your free Google Gemini API key:');
+      setIsApiKeyModalOpen(true);
+      return;
+    }
+
+    setIsGeneratingAiTests(true);
     setLogs(prev => [
       ...prev,
-      { type: 'info', message: `Synthesized ${generated.length} unit test assertions from function signature.`, time: new Date().toLocaleTimeString() }
+      { type: 'info', message: `Sending [${selectedLanguage.toUpperCase()}] code to Gemini AI to generate tailored unit tests...`, time: new Date().toLocaleTimeString() }
     ]);
+
+    try {
+      const generated = await generateAiTestCases(geminiApiKey, code, selectedLanguage);
+      setTestCases(generated);
+      setTestResults(null);
+      setLogs(prev => [
+        ...prev,
+        { type: 'success', message: `Gemini AI synthesized ${generated.length} tailored unit tests for your code! Executing test suite...`, time: new Date().toLocaleTimeString() }
+      ]);
+
+      // Automatically execute the freshly generated tests
+      const results = runTests(code, generated);
+      setTestResults(results);
+      setLogs(prev => [
+        ...prev,
+        { 
+          type: results.failedCount === 0 ? 'success' : 'warn', 
+          message: `AI Test Suite: ${results.passedCount}/${results.totalCount} passed (${results.coveragePercent}% coverage) in ${results.durationMs}ms`, 
+          time: new Date().toLocaleTimeString() 
+        }
+      ]);
+    } catch (err) {
+      setLogs(prev => [
+        ...prev,
+        { type: 'error', message: `Gemini Test Generation Error: ${err.message}`, time: new Date().toLocaleTimeString() }
+      ]);
+      if (err.message.includes('API key') || err.message.includes('403') || err.message.includes('400')) {
+        setApiKeyPromptMessage('Your Gemini API key appears invalid or expired. Please verify it below:');
+        setIsApiKeyModalOpen(true);
+      }
+    } finally {
+      setIsGeneratingAiTests(false);
+    }
+  };
+
+  // AI-powered code rewrite & hardening
+  const handleAiRewrite = async () => {
+    if (!geminiApiKey) {
+      setApiKeyPromptMessage('To have Gemini AI rewrite, modernize, and harden your code, please enter your free Google Gemini API key:');
+      setIsApiKeyModalOpen(true);
+      return;
+    }
+
+    setIsAiRewriting(true);
+    setIsRunning(true);
+    setLogs(prev => [
+      ...prev,
+      { type: 'info', message: `Sending code to Gemini AI to generate an optimized, bug-free, and hardened rewrite...`, time: new Date().toLocaleTimeString() }
+    ]);
+
+    try {
+      const rewritten = await rewriteCodeWithAi(geminiApiKey, code, selectedLanguage, analysis.findings);
+      setFixedCode(rewritten);
+      setIsDiffMode(true);
+      setLogs(prev => [
+        ...prev,
+        { type: 'success', message: `Gemini AI successfully rewrote and hardened your code! Review the side-by-side diff in the editor and click 'Apply Hardened Code' to drop it into your workspace.`, time: new Date().toLocaleTimeString() }
+      ]);
+    } catch (err) {
+      setLogs(prev => [
+        ...prev,
+        { type: 'error', message: `Gemini Code Rewrite Error: ${err.message}`, time: new Date().toLocaleTimeString() }
+      ]);
+      if (err.message.includes('API key') || err.message.includes('403') || err.message.includes('400')) {
+        setApiKeyPromptMessage('Your Gemini API key appears invalid or expired. Please verify it below:');
+        setIsApiKeyModalOpen(true);
+      }
+    } finally {
+      setIsAiRewriting(false);
+      setIsRunning(false);
+    }
   };
 
   // Add custom test
@@ -557,6 +636,25 @@ export default function App() {
                 title="Toggle line-level test coverage heatmap in editor"
               >
                 Coverage Heatmap ({activeCoverageData.percentage}%)
+              </button>
+
+              <button 
+                id="btn-ai-rewrite"
+                className="view-toggle-btn"
+                onClick={handleAiRewrite}
+                disabled={isAiRewriting}
+                title="Ask Gemini AI to rewrite, harden, and optimize your code"
+                style={{
+                  color: '#c084fc',
+                  borderColor: 'rgba(192, 132, 252, 0.4)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontWeight: 600
+                }}
+              >
+                <Sparkles size={12} className={isAiRewriting ? 'spin' : ''} color="#c084fc" />
+                <span>{isAiRewriting ? 'Rewriting with AI...' : 'AI Rewrite'}</span>
               </button>
 
               {code.trim() !== currentSnippet.code.trim() && (
@@ -693,6 +791,7 @@ export default function App() {
               onAddTestCase={handleAddTestCase}
               onDeleteTestCase={handleDeleteTestCase}
               isRunningTests={isRunning}
+              isGeneratingAiTests={isGeneratingAiTests}
             />
           )}
 
@@ -767,6 +866,7 @@ export default function App() {
         onClose={() => setIsApiKeyModalOpen(false)}
         onSaveKey={handleSaveApiKey}
         currentKey={geminiApiKey}
+        promptMessage={apiKeyPromptMessage}
       />
     </div>
   );
