@@ -223,16 +223,6 @@ export function Navbar({
         </button>
 
         <button 
-          id="btn-cicd"
-          className="btn btn-secondary btn-sm"
-          onClick={onOpenCiCdModal}
-          title="Generate GitHub Actions CI/CD Pipeline"
-        >
-          <GitBranch size={14} />
-          <span>CI/CD</span>
-        </button>
-
-        <button 
           id="btn-share"
           className="btn btn-secondary btn-sm"
           onClick={onOpenShareModal}
