@@ -1,48 +1,146 @@
 // Google Gemini AI integration service for DevPulse Studio
 
-export async function askGemini(apiKey, prompt, code, language = 'javascript') {
-  if (!apiKey) {
-    throw new Error("No Gemini API key provided. Please configure your API key in AI Settings.");
+let cachedWorkingModel = null;
+let cachedApiVersion = 'v1beta';
+
+// Candidate models to try in order of preference if ListModels isn't available
+const FALLBACK_CANDIDATES = [
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash',
+  'gemini-1.5-pro-latest',
+  'gemini-1.5-pro',
+  'gemini-pro'
+];
+
+/**
+ * Dynamically queries Google's ListModels API to discover what models
+ * are available and support generateContent for the user's key.
+ */
+async function discoverAvailableModel(apiKey) {
+  if (cachedWorkingModel) {
+    return { model: cachedWorkingModel, apiVersion: cachedApiVersion };
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const versions = ['v1beta', 'v1'];
+  for (const ver of versions) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${apiKey}`);
+      if (res.ok) {
+        const data = await res.json();
+        const available = (data.models || []).filter(m => 
+          Array.isArray(m.supportedGenerationMethods) && 
+          m.supportedGenerationMethods.includes('generateContent')
+        );
 
-  const requestBody = {
-    contents: [
-      {
-        parts: [
-          {
-            text: `${prompt}\n\nLanguage: ${language}\nSource Code:\n\`\`\`${language}\n${code}\n\`\`\``
+        if (available.length > 0) {
+          // Priority matcher: look for 2.0-flash, 2.5-flash, 1.5-flash, pro
+          const priorities = [
+            /gemini-2\.0-flash/i,
+            /gemini-2\.5-flash/i,
+            /gemini-1\.5-flash-latest/i,
+            /gemini-1\.5-flash/i,
+            /gemini-2\.0/i,
+            /gemini-1\.5-pro/i,
+            /gemini-pro/i
+          ];
+
+          for (const pattern of priorities) {
+            const found = available.find(m => pattern.test(m.name));
+            if (found) {
+              const modelId = found.name.replace(/^models\//, '');
+              cachedWorkingModel = modelId;
+              cachedApiVersion = ver;
+              return { model: modelId, apiVersion: ver };
+            }
           }
-        ]
+
+          // If none of the specific patterns matched, pick the first supported one
+          const first = available[0].name.replace(/^models\//, '');
+          cachedWorkingModel = first;
+          cachedApiVersion = ver;
+          return { model: first, apiVersion: ver };
+        }
       }
-    ]
-  };
-
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody)
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API Error: ${res.statusText}`);
+    } catch (e) {
+      console.warn(`DevPulse: ListModels check failed on ${ver}:`, e);
+    }
   }
 
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  return text;
+  // If ListModels failed (e.g. strict CORS or permissions), fallback to default candidate
+  return { model: 'gemini-2.0-flash', apiVersion: 'v1beta' };
+}
+
+/**
+ * Robust caller that uses dynamic model discovery and fallback retry
+ */
+async function callGeminiGenerate(apiKey, promptText) {
+  const sanitizedKey = (apiKey || '').trim().replace(/^["']|["']$/g, '');
+  if (!sanitizedKey) {
+    throw new Error("API key is required for Gemini AI. Please configure your key in AI Settings.");
+  }
+
+  // 1. First attempt with discovered / cached best model
+  const discovered = await discoverAvailableModel(sanitizedKey);
+  const candidateModels = [
+    discovered.model,
+    ...FALLBACK_CANDIDATES.filter(m => m !== discovered.model)
+  ];
+
+  let lastError = null;
+
+  for (const model of candidateModels) {
+    for (const ver of ['v1beta', 'v1']) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${sanitizedKey}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: promptText }] }]
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          cachedWorkingModel = model;
+          cachedApiVersion = ver;
+          return text;
+        }
+
+        const errorData = await res.json().catch(() => ({}));
+        const message = errorData.error?.message || `HTTP ${res.status}: ${res.statusText}`;
+
+        // If 404 or model not found, try next candidate
+        if (res.status === 404 || message.includes('not found') || message.includes('ListModels')) {
+          cachedWorkingModel = null;
+          lastError = new Error(message);
+          continue;
+        }
+
+        // If it's another error (e.g. invalid API key 400 or quota 429), throw immediately
+        throw new Error(message);
+      } catch (err) {
+        if (err.message && !err.message.includes('not found') && !err.message.includes('ListModels')) {
+          throw err;
+        }
+        lastError = err;
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to communicate with Gemini AI: No compatible models found for this API key.");
+}
+
+export async function askGemini(apiKey, prompt, code, language = 'javascript') {
+  const fullPrompt = `${prompt}\n\nLanguage: ${language}\nSource Code:\n\`\`\`${language}\n${code}\n\`\`\``;
+  return await callGeminiGenerate(apiKey, fullPrompt);
 }
 
 // Generate real, tailored unit test cases using Gemini AI based on user's exact code
 export async function generateAiTestCases(apiKey, code, language = 'javascript') {
-  if (!apiKey) {
-    throw new Error("API key is required to generate AI unit tests.");
-  }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
   const promptText = `You are an expert test engineer. Analyze the following ${language} code, identify its primary methods or functions, and generate 4 to 6 high-quality unit test cases covering:
 1. Happy path (standard expected input)
 2. Boundary value (0, limits, or first/last elements)
@@ -67,24 +165,15 @@ Return ONLY a valid JSON array of objects with this exact structure:
 
 IMPORTANT: Output ONLY the raw JSON array. Do not include markdown formatting, explanations, or backticks.`;
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: promptText }] }]
-    })
-  });
+  const raw = await callGeminiGenerate(apiKey, promptText);
+  let rawText = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API Error: ${res.statusText}`);
+  // If there's any surrounding text, find the json array
+  const firstBracket = rawText.indexOf('[');
+  const lastBracket = rawText.lastIndexOf(']');
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    rawText = rawText.substring(firstBracket, lastBracket + 1);
   }
-
-  const data = await res.json();
-  let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-
-  // Clean markdown backticks if Gemini included them
-  rawText = rawText.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
 
   try {
     const parsed = JSON.parse(rawText);
@@ -106,12 +195,6 @@ IMPORTANT: Output ONLY the raw JSON array. Do not include markdown formatting, e
 
 // Rewrite and harden code using Gemini AI
 export async function rewriteCodeWithAi(apiKey, code, language = 'javascript', findings = []) {
-  if (!apiKey) {
-    throw new Error("API key is required to rewrite code with AI.");
-  }
-
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-
   const findingsSummary = findings && findings.length > 0
     ? findings.map(f => `- [${f.severity}] ${f.title}: ${f.description}`).join('\n')
     : 'No static findings flagged.';
@@ -135,24 +218,16 @@ ${code}
 
 IMPORTANT: Output ONLY the complete, executable, clean source code. Do NOT wrap it in markdown backticks or include any conversational text or commentary.`;
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: promptText }] }]
-    })
-  });
+  const raw = await callGeminiGenerate(apiKey, promptText);
+  let rawText = raw.trim();
 
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Gemini API Error: ${res.statusText}`);
+  // Strip opening and closing code fences if present
+  const codeBlockMatch = rawText.match(/```(?:[a-zA-Z0-9_-]+)?\s*([\s\S]*?)```/);
+  if (codeBlockMatch) {
+    rawText = codeBlockMatch[1].trim();
+  } else {
+    rawText = rawText.replace(/^```[a-zA-Z0-9_-]*\s*\n?/i, '').replace(/```\s*$/, '').trim();
   }
-
-  const data = await res.json();
-  let rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-  // Clean markdown code blocks if present
-  rawText = rawText.replace(/^```[a-zA-Z0-9_-]*\s*\n?/i, '').replace(/```\s*$/, '').trim();
 
   return rawText || code;
 }
