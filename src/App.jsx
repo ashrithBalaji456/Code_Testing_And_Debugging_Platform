@@ -773,6 +773,7 @@ export default function App() {
               onApplyFix={handleApplyFix}
               onApplyAllFixes={handleApplyAllFixes}
               onLineClick={(line) => setHighlightedLine(line)}
+              onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
             />
           )}
 
@@ -845,9 +846,11 @@ export default function App() {
       <BenchmarkModal
         isOpen={isBenchmarkModalOpen}
         onClose={() => setIsBenchmarkModalOpen(false)}
+        code={code}
         originalCode={code}
         fixedCode={fixedCode}
         language={selectedLanguage}
+        onHighlightLine={(line) => setHighlightedLine(line)}
       />
 
       {/* Modern Idioms & Strict Types Auto-Refactor Modal */}

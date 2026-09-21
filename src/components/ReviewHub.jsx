@@ -18,7 +18,8 @@ export function ReviewHub({
   analysis,
   onApplyFix,
   onApplyAllFixes,
-  onLineClick
+  onLineClick,
+  onOpenBenchmark
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [copiedReport, setCopiedReport] = useState(false);
@@ -132,6 +133,7 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
       <ComplexityProfiler 
         complexity={analysis?.complexity} 
         onHighlightLine={onLineClick} 
+        onOpenBenchmark={onOpenBenchmark}
       />
 
       {/* Filter and Export Action Bar */}

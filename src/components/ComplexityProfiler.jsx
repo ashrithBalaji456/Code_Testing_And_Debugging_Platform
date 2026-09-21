@@ -1,7 +1,7 @@
 import React from 'react';
 import { Gauge, Zap, Database, AlertCircle, TrendingUp } from 'lucide-react';
 
-export function ComplexityProfiler({ complexity, onHighlightLine }) {
+export function ComplexityProfiler({ complexity, onHighlightLine, onOpenBenchmark }) {
   if (!complexity) return null;
 
   const { time = 'O(1)', space = 'O(1)', explanation = '', hotspots = [] } = complexity;
@@ -24,7 +24,7 @@ export function ComplexityProfiler({ complexity, onHighlightLine }) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div className="complexity-pill" style={{ borderColor: getComplexityColor(time) }}>
             <Zap size={11} color={getComplexityColor(time)} />
             <span>Time: <strong>{time}</strong></span>
@@ -34,6 +34,26 @@ export function ComplexityProfiler({ complexity, onHighlightLine }) {
             <Database size={11} color={getComplexityColor(space)} />
             <span>Space: <strong>{space}</strong></span>
           </div>
+
+          {onOpenBenchmark && (
+            <button
+              id="btn-open-benchmark-profiler"
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenBenchmark}
+              title="Launch Smart Automated Regression & Benchmark Profiler"
+              style={{
+                fontSize: '11px',
+                padding: '3px 9px',
+                color: '#38bdf8',
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                background: 'rgba(56, 189, 248, 0.08)',
+                gap: '5px'
+              }}
+            >
+              <Zap size={12} fill="currentColor" />
+              <span>Benchmark N</span>
+            </button>
+          )}
         </div>
       </div>
 
