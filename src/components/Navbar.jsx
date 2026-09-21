@@ -17,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Dna,
-  ShieldAlert
+  ShieldAlert,
+  FlaskConical
 } from 'lucide-react';
 
 import { CustomDropdown } from './CustomDropdown';
@@ -39,6 +40,7 @@ export function Navbar({
   onOpenBenchmarkModal,
   onOpenSecurityModal,
   securityCount = 0,
+  onOpenFuzzModal,
   onOpenModernizeModal,
   onOpenReportModal,
   onOpenMutationModal,
@@ -281,6 +283,21 @@ export function Navbar({
         >
           <Dna size={14} color="#c084fc" />
           <span>Mutation</span>
+        </button>
+
+        <button 
+          id="btn-fuzz-nav"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenFuzzModal}
+          title="Automated Property-Based & Adversarial Edge-Case Fuzzer"
+          style={{
+            background: 'rgba(6, 182, 212, 0.08)',
+            borderColor: 'rgba(6, 182, 212, 0.3)',
+            color: '#38bdf8'
+          }}
+        >
+          <FlaskConical size={14} color="#38bdf8" />
+          <span>Fuzz</span>
         </button>
 
         <button 

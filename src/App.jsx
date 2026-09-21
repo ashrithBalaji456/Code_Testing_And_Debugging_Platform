@@ -34,6 +34,7 @@ import { ModernizeModal } from './components/ModernizeModal';
 import { ReportModal } from './components/ReportModal';
 import { MutationModal } from './components/MutationModal';
 import { SecurityScannerModal } from './components/SecurityScannerModal';
+import { FuzzTestingModal } from './components/FuzzTestingModal';
 import { scanCodeForVulnerabilities } from './services/securityScanner';
 
 export default function App() {
@@ -123,6 +124,7 @@ export default function App() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMutationModalOpen, setIsMutationModalOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isFuzzModalOpen, setIsFuzzModalOpen] = useState(false);
 
   // Active SAST security audit
   const activeSecurityAudit = useMemo(() => {
@@ -613,6 +615,7 @@ export default function App() {
         onOpenBenchmarkModal={() => setIsBenchmarkModalOpen(true)}
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
         securityCount={activeSecurityAudit.summary.total}
+        onOpenFuzzModal={() => setIsFuzzModalOpen(true)}
         onOpenModernizeModal={() => setIsModernizeModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenMutationModal={() => setIsMutationModalOpen(true)}
@@ -811,6 +814,7 @@ export default function App() {
               onAddTestCase={handleAddTestCase}
               onDeleteTestCase={handleDeleteTestCase}
               onOpenMutationModal={() => setIsMutationModalOpen(true)}
+              onOpenFuzzModal={() => setIsFuzzModalOpen(true)}
               isRunningTests={isRunning}
               isGeneratingAiTests={isGeneratingAiTests}
             />
@@ -907,6 +911,21 @@ export default function App() {
           ]);
         }}
         onHighlightLine={(line) => setHighlightedLine(line)}
+      />
+
+      {/* Property-Based & Adversarial Edge-Case Fuzzer Modal */}
+      <FuzzTestingModal
+        isOpen={isFuzzModalOpen}
+        onClose={() => setIsFuzzModalOpen(false)}
+        code={code}
+        language={selectedLanguage}
+        onAddTestCase={(newTc) => {
+          handleAddTestCase(newTc);
+          setLogs(prev => [
+            ...prev,
+            { type: 'success', message: `Injected discovered edge-case counterexample into unit test suite: "${newTc.name}"`, time: new Date().toLocaleTimeString() }
+          ]);
+        }}
       />
 
       {/* Optional Gemini AI Key Modal */}

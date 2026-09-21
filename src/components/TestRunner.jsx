@@ -11,7 +11,8 @@ import {
   Download,
   Trash2,
   AlertCircle,
-  Dna
+  Dna,
+  FlaskConical
 } from 'lucide-react';
 import { exportToJest, exportToPyTest, exportToJUnit5, exportToGoogleTest } from '../services/testEngine';
 
@@ -25,6 +26,7 @@ export function TestRunner({
   onAddTestCase,
   onDeleteTestCase,
   onOpenMutationModal,
+  onOpenFuzzModal,
   isRunningTests,
   isGeneratingAiTests = false
 }) {
@@ -194,6 +196,26 @@ export function TestRunner({
               <Dna size={14} />
               <span>Mutation Arena</span>
             </button>
+
+            {onOpenFuzzModal && (
+              <button 
+                id="btn-fuzz-testing-ctrl"
+                className="btn btn-secondary btn-sm"
+                onClick={onOpenFuzzModal}
+                title="Automated Property-Based & Adversarial Edge-Case Fuzzer"
+                style={{
+                  background: 'rgba(6, 182, 212, 0.12)',
+                  borderColor: 'rgba(6, 182, 212, 0.4)',
+                  color: '#38bdf8',
+                  fontWeight: 600,
+                  padding: '6px 14px',
+                  gap: '6px'
+                }}
+              >
+                <FlaskConical size={14} />
+                <span>Fuzz Test</span>
+              </button>
+            )}
           </div>
 
           <div className="test-actions-group-secondary">
