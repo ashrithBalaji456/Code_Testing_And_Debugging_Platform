@@ -1470,21 +1470,30 @@ html, body {
   background: var(--bg-card);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  padding: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.test-summary-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .test-stats-grid {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
 .test-stat-item {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .test-stat-label {
@@ -1492,12 +1501,14 @@ html, body {
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .test-stat-number {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--text-primary);
+  line-height: 1.1;
 }
 
 .test-stat-number.passed { color: var(--accent-emerald); }
@@ -1506,21 +1517,23 @@ html, body {
 .test-coverage-meter {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  width: 140px;
+  gap: 6px;
+  min-width: 170px;
+  flex: 1;
+  max-width: 260px;
 }
 
 .coverage-text {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .coverage-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 7px;
+  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-full);
   overflow: hidden;
 }
@@ -1529,11 +1542,30 @@ html, body {
   height: 100%;
   background: linear-gradient(90deg, var(--accent-cyan), var(--accent-emerald));
   border-radius: var(--radius-full);
+  transition: width 0.3s ease;
 }
 
-.test-suite-controls {
+.test-summary-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-default);
+}
+
+.test-actions-group-primary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.test-actions-group-secondary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 

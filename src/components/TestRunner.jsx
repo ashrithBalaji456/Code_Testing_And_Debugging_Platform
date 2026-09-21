@@ -106,20 +106,22 @@ export function TestRunner({
     <div className="studio-content-area">
       {/* Test Stats Banner */}
       <div className="test-summary-card">
-        <div className="test-stats-grid">
-          <div className="test-stat-item">
-            <span className="test-stat-label">Total Tests</span>
-            <span className="test-stat-number">{testCases.length}</span>
-          </div>
+        <div className="test-summary-top">
+          <div className="test-stats-grid">
+            <div className="test-stat-item">
+              <span className="test-stat-label">Total Tests</span>
+              <span className="test-stat-number">{testCases.length}</span>
+            </div>
 
-          <div className="test-stat-item">
-            <span className="test-stat-label">Passed</span>
-            <span className="test-stat-number passed">{passedCount}</span>
-          </div>
+            <div className="test-stat-item">
+              <span className="test-stat-label">Passed</span>
+              <span className="test-stat-number passed">{passedCount}</span>
+            </div>
 
-          <div className="test-stat-item">
-            <span className="test-stat-label">Failed</span>
-            <span className="test-stat-number failed">{failedCount}</span>
+            <div className="test-stat-item">
+              <span className="test-stat-label">Failed</span>
+              <span className="test-stat-number failed">{failedCount}</span>
+            </div>
           </div>
 
           <div className="test-coverage-meter">
@@ -141,95 +143,91 @@ export function TestRunner({
           </div>
         </div>
 
-        <div className="test-suite-controls">
-          <button 
-            id="btn-run-all-tests"
-            className="btn btn-success btn-sm"
-            onClick={onRunAllTests}
-            disabled={isRunningTests || testCases.length === 0}
-            title="Execute test suite against current editor code"
-          >
-            <Play size={13} fill="currentColor" />
-            <span>Run All Tests</span>
-          </button>
+        {/* Action Toolbar */}
+        <div className="test-summary-actions">
+          <div className="test-actions-group-primary">
+            <button 
+              id="btn-run-all-tests"
+              className="btn btn-success btn-sm"
+              onClick={onRunAllTests}
+              disabled={isRunningTests || testCases.length === 0}
+              title="Execute test suite against current editor code"
+              style={{ padding: '6px 14px', fontWeight: 600 }}
+            >
+              <Play size={13} fill="currentColor" />
+              <span>Run All Tests</span>
+            </button>
 
-          <button 
-            id="btn-generate-tests"
-            className="btn btn-primary btn-sm"
-            onClick={onGenerateTests}
-            disabled={isGeneratingAiTests || isRunningTests}
-            title="Generate custom unit test cases using Gemini AI specifically for this code"
-            style={{
-              background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-              borderColor: '#a855f7',
-              color: '#ffffff',
-              boxShadow: '0 2px 8px rgba(168, 85, 247, 0.35)',
-              fontWeight: 600
-            }}
-          >
-            <Sparkles size={13} className={isGeneratingAiTests ? 'spin' : ''} />
-            <span>{isGeneratingAiTests ? 'Generating with Gemini...' : 'AI Generate Tests'}</span>
-          </button>
+            <button 
+              id="btn-generate-tests"
+              className="btn btn-primary btn-sm"
+              onClick={onGenerateTests}
+              disabled={isGeneratingAiTests || isRunningTests}
+              title="Generate custom unit test cases using Gemini AI specifically for this code"
+              style={{
+                background: 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                borderColor: '#a855f7',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(168, 85, 247, 0.35)',
+                fontWeight: 600,
+                padding: '6px 14px'
+              }}
+            >
+              <Sparkles size={13} className={isGeneratingAiTests ? 'spin' : ''} />
+              <span>{isGeneratingAiTests ? 'Generating with Gemini...' : 'AI Generate Tests'}</span>
+            </button>
 
-          <button 
-            id="btn-mutation-arena-ctrl"
-            className="btn btn-secondary btn-sm"
-            onClick={onOpenMutationModal}
-            title="In-Browser Mutation Testing Arena: Stress-test unit test suite by injecting subtle code bugs"
-            style={{
-              background: 'rgba(168, 85, 247, 0.12)',
-              borderColor: 'rgba(168, 85, 247, 0.4)',
-              color: '#c084fc',
-              fontWeight: 600,
-              gap: '6px'
-            }}
-          >
-            <Dna size={14} />
-            <span>Mutation Arena</span>
-          </button>
+            <button 
+              id="btn-mutation-arena-ctrl"
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenMutationModal}
+              title="In-Browser Mutation Testing Arena: Stress-test unit test suite by injecting subtle code bugs"
+              style={{
+                background: 'rgba(168, 85, 247, 0.12)',
+                borderColor: 'rgba(168, 85, 247, 0.4)',
+                color: '#c084fc',
+                fontWeight: 600,
+                padding: '6px 14px',
+                gap: '6px'
+              }}
+            >
+              <Dna size={14} />
+              <span>Mutation Arena</span>
+            </button>
+          </div>
+
+          <div className="test-actions-group-secondary">
+            <button 
+              id="btn-open-add-test-modal"
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowAddModal(true)}
+              style={{ padding: '6px 12px' }}
+            >
+              <Plus size={13} />
+              <span>Add Test</span>
+            </button>
+
+            <button 
+              id="btn-export-test-code"
+              className="btn btn-secondary btn-sm"
+              onClick={handleExportTests}
+              title={`Export test suite for ${language}`}
+              style={{ padding: '6px 12px' }}
+            >
+              <Download size={13} />
+              <span>{getExportButtonLabel()}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Action Subbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Action Subbar / List Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 4px' }}>
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>
           Test Cases ({testCases.length})
         </div>
-
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            id="btn-open-add-test-modal"
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowAddModal(true)}
-          >
-            <Plus size={13} />
-            <span>Add Test</span>
-          </button>
-
-          <button 
-            id="btn-open-mutation-modal"
-            className="btn btn-secondary btn-sm"
-            onClick={onOpenMutationModal}
-            title="In-Browser Mutation Testing Arena"
-            style={{
-              color: '#c084fc',
-              borderColor: 'rgba(168, 85, 247, 0.3)',
-              gap: '6px'
-            }}
-          >
-            <Dna size={13} />
-            <span>Mutation Arena</span>
-          </button>
-
-          <button 
-            id="btn-export-test-code"
-            className="btn btn-secondary btn-sm"
-            onClick={handleExportTests}
-            title={`Export test suite for ${language}`}
-          >
-            <Download size={13} />
-            <span>{getExportButtonLabel()}</span>
-          </button>
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {testResults ? `${passedCount} passed • ${failedCount} failed` : 'Ready to execute'}
         </div>
       </div>
 
