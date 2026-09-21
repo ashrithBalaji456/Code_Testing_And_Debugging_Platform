@@ -1,19 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Bug, 
   CheckCircle, 
   AlertOctagon, 
-  Play, 
-  Pause, 
-  SkipForward, 
-  RotateCcw, 
-  Layers, 
   Activity, 
-  Wrench,
-  Search,
-  Workflow
+  Workflow,
+  History
 } from 'lucide-react';
 import { CallGraphVisualizer } from './CallGraphVisualizer';
+import { TimeTravelScrubber } from './TimeTravelScrubber';
 
 export function Debugger({
   code = '',
@@ -24,8 +19,6 @@ export function Debugger({
   onApplyDiagnosisFix,
   onHighlightLine
 }) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [debugViewMode, setDebugViewMode] = useState('trace'); // 'trace' | 'graph'
 
   const error = executionResult?.error || (simulatedError ? {
@@ -40,53 +33,6 @@ export function Debugger({
   } : null);
 
   const hasError = !!error;
-
-  // Step-by-step simulator auto-play
-  useEffect(() => {
-    let timer;
-    if (isPlaying && stepTrace.length > 0) {
-      timer = setInterval(() => {
-        setCurrentStepIndex((prev) => {
-          if (prev >= stepTrace.length - 1) {
-            setIsPlaying(false);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isPlaying, stepTrace.length]);
-
-  const currentStep = stepTrace[currentStepIndex] || null;
-
-  const handleNextStep = () => {
-    if (currentStepIndex < stepTrace.length - 1) {
-      const next = currentStepIndex + 1;
-      setCurrentStepIndex(next);
-      if (stepTrace[next]?.line && onHighlightLine) {
-        onHighlightLine(stepTrace[next].line);
-      }
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStepIndex > 0) {
-      const prev = currentStepIndex - 1;
-      setCurrentStepIndex(prev);
-      if (stepTrace[prev]?.line && onHighlightLine) {
-        onHighlightLine(stepTrace[prev].line);
-      }
-    }
-  };
-
-  const handleResetSim = () => {
-    setIsPlaying(false);
-    setCurrentStepIndex(0);
-    if (stepTrace[0]?.line && onHighlightLine) {
-      onHighlightLine(stepTrace[0].line);
-    }
-  };
 
   return (
     <div className="studio-content-area">
@@ -147,8 +93,8 @@ export function Debugger({
           className={`filter-pill ${debugViewMode === 'trace' ? 'active' : ''}`}
           onClick={() => setDebugViewMode('trace')}
         >
-          <Activity size={12} style={{ display: 'inline', marginRight: '5px' }} />
-          <span>Execution Trace & Watch</span>
+          <History size={12} style={{ display: 'inline', marginRight: '5px' }} />
+          <span>Time-Travel Scrubber</span>
         </button>
         <button
           id="btn-subview-graph"
@@ -167,80 +113,12 @@ export function Debugger({
           onHighlightLine={onHighlightLine}
         />
       ) : (
-        /* Step-by-Step Execution Simulator */
-        <div className="simulator-panel">
-          <div className="simulator-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={16} color="var(--accent-cyan)" />
-              <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Execution Trace & Variable Watch
-              </span>
-            </div>
-
-            <div className="sim-controls">
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={handleResetSim}
-                disabled={currentStepIndex === 0}
-                title="Reset simulation to step 1"
-              >
-                <RotateCcw size={12} />
-              </button>
-
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={() => setIsPlaying(!isPlaying)}
-                title={isPlaying ? 'Pause simulation' : 'Auto-step through execution'}
-              >
-                {isPlaying ? <Pause size={12} /> : <Play size={12} />}
-              </button>
-
-              <button 
-                className="btn btn-secondary btn-sm"
-                onClick={handleNextStep}
-                disabled={currentStepIndex >= stepTrace.length - 1}
-                title="Step to next iteration"
-              >
-                <SkipForward size={12} />
-              </button>
-
-              <span className="sim-step-indicator">
-                Step {stepTrace.length > 0 ? currentStepIndex + 1 : 0} of {stepTrace.length}
-              </span>
-            </div>
-          </div>
-
-          {currentStep ? (
-            <div>
-              <div style={{ marginBottom: '10px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                Currently inspecting execution frame at <strong style={{ color: 'var(--accent-primary-light)' }}>Line {currentStep.line}</strong>:
-              </div>
-
-              <table className="variable-watch-table">
-                <thead>
-                  <tr>
-                    <th>Variable Name</th>
-                    <th>Value / State</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(currentStep.vars).map(([name, val]) => (
-                    <tr key={name}>
-                      <td className="var-name">{name}</td>
-                      <td className="var-val">
-                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: '12.5px', padding: '10px 0' }}>
-              Select a preset algorithmic snippet or run code with breakpoints to trace variable snapshots.
-            </div>
-          )}
-        </div>
+        <TimeTravelScrubber
+          code={code}
+          language={language}
+          stepTrace={stepTrace}
+          onHighlightLine={onHighlightLine}
+        />
       )}
     </div>
   );
