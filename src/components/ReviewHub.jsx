@@ -19,7 +19,8 @@ export function ReviewHub({
   onApplyFix,
   onApplyAllFixes,
   onLineClick,
-  onOpenBenchmark
+  onOpenBenchmark,
+  onOpenSecurity
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [copiedReport, setCopiedReport] = useState(false);
@@ -86,10 +87,20 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
 
         <div className="metrics-breakdown">
           {/* Security */}
-          <div className="metric-card">
+          <div 
+            className="metric-card"
+            onClick={onOpenSecurity}
+            style={{ cursor: onOpenSecurity ? 'pointer' : 'default' }}
+            title="Click to launch Deep SAST Security Audit & 1-Click Auto-Patching"
+          >
             <div className="metric-header">
-              <span>Security</span>
-              <span className="metric-value">{securityScore}%</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <ShieldAlert size={12} color="#fb7185" />
+                <span>Security</span>
+              </span>
+              <span className="metric-value" style={{ color: securityScore < 70 ? '#fb7185' : 'var(--text-primary)' }}>
+                {securityScore}%
+              </span>
             </div>
             <div className="metric-bar-bg">
               <div 
@@ -182,6 +193,25 @@ ${findings.map((f, i) => `### ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
             >
               <Sparkles size={13} />
               <span>Apply All Fixes ({findings.filter(f => f.suggestedFix).length})</span>
+            </button>
+          )}
+
+          {onOpenSecurity && (
+            <button 
+              id="btn-open-sast-audit"
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenSecurity}
+              title="Launch Deep SAST Security Scanner & 1-Click Auto-Patching"
+              style={{
+                color: '#fb7185',
+                borderColor: 'rgba(244, 63, 94, 0.4)',
+                background: 'rgba(244, 63, 94, 0.08)',
+                fontWeight: 600,
+                gap: '5px'
+              }}
+            >
+              <ShieldAlert size={13} />
+              <span>SAST Audit</span>
             </button>
           )}
 

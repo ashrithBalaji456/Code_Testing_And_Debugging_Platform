@@ -33,6 +33,8 @@ import { BenchmarkModal } from './components/BenchmarkModal';
 import { ModernizeModal } from './components/ModernizeModal';
 import { ReportModal } from './components/ReportModal';
 import { MutationModal } from './components/MutationModal';
+import { SecurityScannerModal } from './components/SecurityScannerModal';
+import { scanCodeForVulnerabilities } from './services/securityScanner';
 
 export default function App() {
   // 1. Language: restored from localStorage or default 'javascript'
@@ -120,6 +122,12 @@ export default function App() {
   const [isModernizeModalOpen, setIsModernizeModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isMutationModalOpen, setIsMutationModalOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+
+  // Active SAST security audit
+  const activeSecurityAudit = useMemo(() => {
+    return scanCodeForVulnerabilities(code, selectedLanguage);
+  }, [code, selectedLanguage]);
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
@@ -603,6 +611,8 @@ export default function App() {
         onOpenCiCdModal={() => setIsCiCdModalOpen(true)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenBenchmarkModal={() => setIsBenchmarkModalOpen(true)}
+        onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        securityCount={activeSecurityAudit.summary.total}
         onOpenModernizeModal={() => setIsModernizeModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenMutationModal={() => setIsMutationModalOpen(true)}
@@ -774,6 +784,7 @@ export default function App() {
               onApplyAllFixes={handleApplyAllFixes}
               onLineClick={(line) => setHighlightedLine(line)}
               onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
+              onOpenSecurity={() => setIsSecurityModalOpen(true)}
             />
           )}
 
@@ -880,6 +891,22 @@ export default function App() {
         testCases={testCases}
         language={selectedLanguage}
         onAddTestCase={handleAddTestCase}
+      />
+
+      {/* Deep SAST Security & Anti-Pattern Vulnerability Scanner Modal */}
+      <SecurityScannerModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        code={code}
+        language={selectedLanguage}
+        onApplyCode={(patched) => {
+          setCode(patched);
+          setLogs(prev => [
+            ...prev,
+            { type: 'success', message: 'Applied secure remediation patch to active code.', time: new Date().toLocaleTimeString() }
+          ]);
+        }}
+        onHighlightLine={(line) => setHighlightedLine(line)}
       />
 
       {/* Optional Gemini AI Key Modal */}

@@ -16,7 +16,8 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
-  Dna
+  Dna,
+  ShieldAlert
 } from 'lucide-react';
 
 import { CustomDropdown } from './CustomDropdown';
@@ -36,6 +37,8 @@ export function Navbar({
   onOpenCiCdModal,
   onOpenShareModal,
   onOpenBenchmarkModal,
+  onOpenSecurityModal,
+  securityCount = 0,
   onOpenModernizeModal,
   onOpenReportModal,
   onOpenMutationModal,
@@ -242,6 +245,27 @@ export function Navbar({
         >
           <Gauge size={14} />
           <span>Benchmark</span>
+        </button>
+
+        <button 
+          id="btn-security-nav"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenSecurityModal}
+          title="Deep SAST Security & Vulnerability Scanner (OWASP / CWE / CVSS)"
+          style={{
+            background: securityCount > 0 ? 'rgba(244, 63, 94, 0.08)' : undefined,
+            borderColor: securityCount > 0 ? 'rgba(244, 63, 94, 0.4)' : undefined,
+            color: securityCount > 0 ? '#fb7185' : undefined,
+            gap: '6px'
+          }}
+        >
+          <ShieldAlert size={14} color={securityCount > 0 ? '#fb7185' : 'currentColor'} />
+          <span>Security</span>
+          {securityCount > 0 && (
+            <span className="studio-tab-counter" style={{ background: '#f43f5e', color: '#fff', fontSize: '10px', padding: '1px 5px' }}>
+              {securityCount}
+            </span>
+          )}
         </button>
 
         <button 
