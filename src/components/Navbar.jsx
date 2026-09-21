@@ -15,7 +15,8 @@ import {
   Gauge,
   FileText,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Dna
 } from 'lucide-react';
 
 import { CustomDropdown } from './CustomDropdown';
@@ -37,6 +38,7 @@ export function Navbar({
   onOpenBenchmarkModal,
   onOpenModernizeModal,
   onOpenReportModal,
+  onOpenMutationModal,
   currentTheme = 'obsidian',
   onSelectTheme,
   hasApiKey,
@@ -240,6 +242,21 @@ export function Navbar({
         >
           <Gauge size={14} />
           <span>Benchmark</span>
+        </button>
+
+        <button 
+          id="btn-mutation-nav"
+          className="btn btn-secondary btn-sm"
+          onClick={onOpenMutationModal}
+          title="In-Browser Mutation Testing Arena (Stress-test your test suite)"
+          style={{
+            background: 'rgba(168, 85, 247, 0.08)',
+            borderColor: 'rgba(168, 85, 247, 0.3)',
+            color: '#c084fc'
+          }}
+        >
+          <Dna size={14} color="#c084fc" />
+          <span>Mutation</span>
         </button>
 
         <button 

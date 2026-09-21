@@ -32,6 +32,7 @@ import { ShareModal } from './components/ShareModal';
 import { BenchmarkModal } from './components/BenchmarkModal';
 import { ModernizeModal } from './components/ModernizeModal';
 import { ReportModal } from './components/ReportModal';
+import { MutationModal } from './components/MutationModal';
 
 export default function App() {
   // 1. Language: restored from localStorage or default 'javascript'
@@ -118,6 +119,7 @@ export default function App() {
   const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
   const [isModernizeModalOpen, setIsModernizeModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isMutationModalOpen, setIsMutationModalOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(() => localStorage.getItem('devpulse_theme') || 'obsidian');
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [isRunning, setIsRunning] = useState(false);
@@ -603,6 +605,7 @@ export default function App() {
         onOpenBenchmarkModal={() => setIsBenchmarkModalOpen(true)}
         onOpenModernizeModal={() => setIsModernizeModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenMutationModal={() => setIsMutationModalOpen(true)}
         currentTheme={currentTheme}
         onSelectTheme={setCurrentTheme}
         hasApiKey={!!geminiApiKey}
@@ -795,6 +798,7 @@ export default function App() {
               onGenerateTests={handleGenerateTests}
               onAddTestCase={handleAddTestCase}
               onDeleteTestCase={handleDeleteTestCase}
+              onOpenMutationModal={() => setIsMutationModalOpen(true)}
               isRunningTests={isRunning}
               isGeneratingAiTests={isGeneratingAiTests}
             />
@@ -863,6 +867,16 @@ export default function App() {
         testResults={testResults}
         language={selectedLanguage}
         code={code}
+      />
+
+      {/* In-Browser Mutation Testing Arena Modal */}
+      <MutationModal
+        isOpen={isMutationModalOpen}
+        onClose={() => setIsMutationModalOpen(false)}
+        code={code}
+        testCases={testCases}
+        language={selectedLanguage}
+        onAddTestCase={handleAddTestCase}
       />
 
       {/* Optional Gemini AI Key Modal */}

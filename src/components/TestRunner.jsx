@@ -10,7 +10,8 @@ import {
   Code, 
   Download,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Dna
 } from 'lucide-react';
 import { exportToJest, exportToPyTest, exportToJUnit5, exportToGoogleTest } from '../services/testEngine';
 
@@ -23,6 +24,7 @@ export function TestRunner({
   onGenerateTests,
   onAddTestCase,
   onDeleteTestCase,
+  onOpenMutationModal,
   isRunningTests,
   isGeneratingAiTests = false
 }) {
@@ -168,6 +170,23 @@ export function TestRunner({
             <Sparkles size={13} className={isGeneratingAiTests ? 'spin' : ''} />
             <span>{isGeneratingAiTests ? 'Generating with Gemini...' : 'AI Generate Tests'}</span>
           </button>
+
+          <button 
+            id="btn-mutation-arena-ctrl"
+            className="btn btn-secondary btn-sm"
+            onClick={onOpenMutationModal}
+            title="In-Browser Mutation Testing Arena: Stress-test unit test suite by injecting subtle code bugs"
+            style={{
+              background: 'rgba(168, 85, 247, 0.12)',
+              borderColor: 'rgba(168, 85, 247, 0.4)',
+              color: '#c084fc',
+              fontWeight: 600,
+              gap: '6px'
+            }}
+          >
+            <Dna size={14} />
+            <span>Mutation Arena</span>
+          </button>
         </div>
       </div>
 
@@ -185,6 +204,21 @@ export function TestRunner({
           >
             <Plus size={13} />
             <span>Add Test</span>
+          </button>
+
+          <button 
+            id="btn-open-mutation-modal"
+            className="btn btn-secondary btn-sm"
+            onClick={onOpenMutationModal}
+            title="In-Browser Mutation Testing Arena"
+            style={{
+              color: '#c084fc',
+              borderColor: 'rgba(168, 85, 247, 0.3)',
+              gap: '6px'
+            }}
+          >
+            <Dna size={13} />
+            <span>Mutation Arena</span>
           </button>
 
           <button 
